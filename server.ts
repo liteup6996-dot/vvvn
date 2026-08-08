@@ -89,7 +89,8 @@ app.get('/api/supabase/config', (req, res) => {
   const fileConfig = readJsonFile<{ url: string; key: string }>(SUPABASE_CONFIG_FILE, { url: '', key: '' });
   res.json({
     configured: Boolean(supabase),
-    url: fileConfig.url ? `${fileConfig.url.slice(0, 20)}...` : '',
+    url: fileConfig.url,
+    key: fileConfig.key,
   });
 });
 
@@ -259,7 +260,7 @@ app.post('/api/assignments', async (req, res) => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      const { error } = await supabase.from('assignments').insert([
+      const { error } = await supabase.from('assignments').upsert([
         {
           id: assignment.id,
           student_id_code: studentIdCode,
@@ -272,9 +273,13 @@ app.post('/api/assignments', async (req, res) => {
           status: assignment.status || 'Pending',
         },
       ]);
-      if (!error) savedToSupabase = true;
+      if (!error) {
+        savedToSupabase = true;
+      } else {
+        console.error('Supabase assignment creation error:', error);
+      }
     } catch (err) {
-      console.error('Supabase assignment creation error:', err);
+      console.error('Supabase assignment creation exception:', err);
     }
   }
 
@@ -298,7 +303,7 @@ app.post('/api/assignments/submit', async (req, res) => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      const { error: subErr } = await supabase.from('submissions').insert([
+      const { error: subErr } = await supabase.from('submissions').upsert([
         {
           assignment_id: assignmentId,
           student_id_code: studentIdCode,

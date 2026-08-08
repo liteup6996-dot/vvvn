@@ -65,7 +65,10 @@ export const initSupabaseFromBackend = async (): Promise<boolean> => {
     const res = await fetch('/api/supabase/config');
     if (res.ok) {
       const data = await res.json();
-      if (data.configured) {
+      if (data.configured && data.url && data.key) {
+        if (!isSupabaseConfigured()) {
+          setSupabaseCredentials(data.url, data.key);
+        }
         return true;
       }
     }

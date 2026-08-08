@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StudentProfile, Assignment } from '../types';
 import { ABDUL_REHMAN_STUDENT, LOGO_URL } from '../data';
-import { isSupabaseConfigured, SUPABASE_SETUP_SQL } from '../lib/supabase';
+import { isSupabaseConfigured, initSupabaseFromBackend, SUPABASE_SETUP_SQL } from '../lib/supabase';
 import {
   authenticateUser,
   fetchAssignmentsFromStore,
@@ -95,28 +95,28 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   const [studentTab, setStudentTab] = useState<'active' | 'submitted'>('active');
 
   // Load assignments from Central DB or localStorage on mount
-  const loadAssignments = async () => {
-    setIsLoadingAssignments(true);
+  const loadAssignments = async (showSpinner = false) => {
+    if (showSpinner) setIsLoadingAssignments(true);
+    await initSupabaseFromBackend();
     const list = await fetchAssignmentsFromStore(STORAGE_KEY);
     setAssignments(list);
-    setIsLoadingAssignments(false);
-    
+    if (showSpinner) setIsLoadingAssignments(false);
+
     const dbStatus = await checkDatabaseStatus();
     setServerConnected(dbStatus.serverConnected);
     setSupabaseConnected(dbStatus.supabaseConnected);
   };
 
   useEffect(() => {
-    loadAssignments();
-    setSupabaseConnected(isSupabaseConfigured());
+    loadAssignments(true);
 
-    // Auto-refresh assignments every 5 seconds for real-time multi-device sync
+    // Auto-refresh assignments every 3 seconds for real-time multi-device sync
     const interval = setInterval(() => {
-      loadAssignments();
-    }, 5000);
+      loadAssignments(false);
+    }, 3000);
 
     const handleFocus = () => {
-      loadAssignments();
+      loadAssignments(false);
     };
     window.addEventListener('focus', handleFocus);
 
