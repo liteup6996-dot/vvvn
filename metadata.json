@@ -1,0 +1,6 @@
+{
+  "name": "Vocal Vantage - Accent Training & Communication Excellence",
+  "description": "Official website and student portal for Vocal Vantage accent training and communication academy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
