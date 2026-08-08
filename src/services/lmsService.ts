@@ -1,4 +1,4 @@
-import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import { getSupabase, isSupabaseConfigured, initSupabaseFromBackend } from '../lib/supabase';
 import { Assignment, StudentProfile } from '../types';
 import { ABDUL_REHMAN_STUDENT } from '../data';
 
@@ -151,29 +151,49 @@ export async function authenticateUser(
   }
 }
 
+export async function checkDatabaseStatus(): Promise<{ serverConnected: boolean; supabaseConnected: boolean }> {
+  await initSupabaseFromBackend();
+  let serverConnected = false;
+  let supabaseConnected = isSupabaseConfigured();
+
+  try {
+    const res = await fetch('/api/assignments');
+    if (res.ok) {
+      serverConnected = true;
+      const data = await res.json();
+      if (data.supabaseConnected) {
+        supabaseConnected = true;
+      }
+    }
+  } catch {
+    serverConnected = false;
+  }
+
+  return { serverConnected, supabaseConnected };
+}
+
 /**
- * Fetch assignments from Express Server (or Supabase/LocalStorage fallback)
+ * Fetch assignments from Express Server AND Supabase, merging non-duplicates
  */
 export async function fetchAssignmentsFromStore(storageKey: string): Promise<Assignment[]> {
+  const mapById = new Map<string, Assignment>();
+
   // 1. Try Express Server API
   try {
     const res = await fetch('/api/assignments');
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.assignments)) {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(data.assignments));
-        } catch {
-          // ignore
-        }
-        return data.assignments;
+        data.assignments.forEach((asg: Assignment) => {
+          if (asg && asg.id) mapById.set(asg.id, asg);
+        });
       }
     }
   } catch (err) {
-    console.warn('Express /api/assignments unreachable, trying fallback:', err);
+    console.warn('Express /api/assignments fetch warning:', err);
   }
 
-  // 2. Try Supabase directly if configured
+  // 2. Try Client Supabase directly if configured
   if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (supabase) {
@@ -199,19 +219,20 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
             });
           }
 
-          const parsedList: Assignment[] = asgData.map((row) => ({
-            id: row.id,
-            title: row.title,
-            instructions: row.instructions,
-            assignedDate: row.assigned_date,
-            dueDate: row.due_date,
-            dueDateTimeMs: row.due_date_time_ms ? Number(row.due_date_time_ms) : undefined,
-            imageUrl: row.image_url || undefined,
-            status: row.status as 'Pending' | 'Submitted' | 'Closed',
-            submittedFile: subMap[row.id] || undefined,
-          }));
-
-          return parsedList;
+          asgData.forEach((row) => {
+            const parsed: Assignment = {
+              id: row.id,
+              title: row.title,
+              instructions: row.instructions,
+              assignedDate: row.assigned_date,
+              dueDate: row.due_date,
+              dueDateTimeMs: row.due_date_time_ms ? Number(row.due_date_time_ms) : undefined,
+              imageUrl: row.image_url || undefined,
+              status: row.status as 'Pending' | 'Submitted' | 'Closed',
+              submittedFile: subMap[row.id] || undefined,
+            };
+            mapById.set(parsed.id, parsed);
+          });
         }
       } catch (err) {
         console.warn('Failed to load assignments from Supabase:', err);
@@ -219,28 +240,42 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
     }
   }
 
-  // 3. Fallback to localStorage
+  // 3. Fallback / merge with localStorage
   try {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
-      return JSON.parse(saved);
+      const localList: Assignment[] = JSON.parse(saved);
+      localList.forEach((a) => {
+        if (a && a.id && !mapById.has(a.id)) {
+          mapById.set(a.id, a);
+        }
+      });
     }
   } catch {
     // ignore
   }
-  return [];
+
+  const resultList = Array.from(mapById.values());
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(resultList));
+  } catch {
+    // ignore
+  }
+
+  return resultList;
 }
 
 /**
- * Save new assignment to Express Server DB (and Supabase/LocalStorage)
+ * Save new assignment to BOTH Express Server DB AND Supabase
  */
 export async function createAssignmentInStore(
   asg: Assignment,
   studentIdCode: string = '625H'
 ): Promise<boolean> {
-  let saved = false;
+  let savedServer = false;
+  let savedSupabase = false;
 
-  // 1. Express Server API
+  // 1. Save to Express Server API
   try {
     const res = await fetch('/api/assignments', {
       method: 'POST',
@@ -251,19 +286,19 @@ export async function createAssignmentInStore(
     if (res.ok) {
       const data = await res.json();
       if (data.success) {
-        saved = true;
+        savedServer = true;
       }
     }
   } catch (err) {
     console.error('Express /api/assignments POST error:', err);
   }
 
-  // 2. Direct Supabase call if configured
-  if (!saved && isSupabaseConfigured()) {
+  // 2. Direct Supabase call if configured on client
+  if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { error } = await supabase.from('assignments').insert([
+        const { error } = await supabase.from('assignments').upsert([
           {
             id: asg.id,
             student_id_code: studentIdCode,
@@ -278,7 +313,9 @@ export async function createAssignmentInStore(
         ]);
 
         if (!error) {
-          saved = true;
+          savedSupabase = true;
+        } else {
+          console.error('Supabase assignment upsert error:', error);
         }
       } catch (err) {
         console.error('Failed to create assignment in Supabase:', err);
@@ -286,11 +323,11 @@ export async function createAssignmentInStore(
     }
   }
 
-  return saved;
+  return savedServer || savedSupabase;
 }
 
 /**
- * Submit assignment file to Express Server DB (and Supabase/LocalStorage)
+ * Submit assignment file to BOTH Express Server DB AND Supabase
  */
 export async function submitAssignmentInStore(
   asgId: string,
@@ -303,7 +340,8 @@ export async function submitAssignmentInStore(
     dataUrl?: string;
   }
 ): Promise<boolean> {
-  let saved = false;
+  let savedServer = false;
+  let savedSupabase = false;
 
   // 1. Express Server API
   try {
@@ -316,7 +354,7 @@ export async function submitAssignmentInStore(
     if (res.ok) {
       const data = await res.json();
       if (data.success) {
-        saved = true;
+        savedServer = true;
       }
     }
   } catch (err) {
@@ -324,7 +362,7 @@ export async function submitAssignmentInStore(
   }
 
   // 2. Direct Supabase call if configured
-  if (!saved && isSupabaseConfigured()) {
+  if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -346,7 +384,7 @@ export async function submitAssignmentInStore(
           .eq('id', asgId);
 
         if (!subError && !updateError) {
-          saved = true;
+          savedSupabase = true;
         }
       } catch (err) {
         console.error('Failed to submit assignment in Supabase:', err);
@@ -354,11 +392,11 @@ export async function submitAssignmentInStore(
     }
   }
 
-  return saved;
+  return savedServer || savedSupabase;
 }
 
 /**
- * Delete single assignment from Express Server DB and LocalStorage
+ * Delete single assignment from BOTH Express Server DB and Supabase
  */
 export async function deleteAssignmentInStore(asgId: string, storageKey: string): Promise<boolean> {
   try {
@@ -394,7 +432,7 @@ export async function deleteAssignmentInStore(asgId: string, storageKey: string)
 }
 
 /**
- * Clear ALL assignments from Express Server DB and LocalStorage
+ * Clear ALL assignments from Express Server DB and Supabase
  */
 export async function clearAllAssignmentsInStore(storageKey: string): Promise<boolean> {
   try {

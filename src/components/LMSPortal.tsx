@@ -9,6 +9,7 @@ import {
   submitAssignmentInStore,
   deleteAssignmentInStore,
   clearAllAssignmentsInStore,
+  checkDatabaseStatus,
 } from '../services/lmsService';
 import {
   Upload,
@@ -66,8 +67,9 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   const [isInstructorLoggedIn, setIsInstructorLoggedIn] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Supabase Config State & Modal
+  // Database Config State
   const [supabaseConnected, setSupabaseConnected] = useState<boolean>(isSupabaseConfigured());
+  const [serverConnected, setServerConnected] = useState<boolean>(true);
   const [showSqlModal, setShowSqlModal] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
@@ -92,12 +94,16 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   // Student Active vs Submitted Tab ('active' | 'submitted')
   const [studentTab, setStudentTab] = useState<'active' | 'submitted'>('active');
 
-  // Load assignments from Supabase DB or localStorage on mount
+  // Load assignments from Central DB or localStorage on mount
   const loadAssignments = async () => {
     setIsLoadingAssignments(true);
     const list = await fetchAssignmentsFromStore(STORAGE_KEY);
     setAssignments(list);
     setIsLoadingAssignments(false);
+    
+    const dbStatus = await checkDatabaseStatus();
+    setServerConnected(dbStatus.serverConnected);
+    setSupabaseConnected(dbStatus.supabaseConnected);
   };
 
   useEffect(() => {
@@ -526,6 +532,19 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold ${
+                supabaseConnected || serverConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}>
+                <Database className="w-3 h-3 text-emerald-600" />
+                <span>
+                  {supabaseConnected
+                    ? 'Supabase Cloud DB Active'
+                    : serverConnected
+                    ? 'Central Database Active'
+                    : 'Offline Cache Mode'}
+                </span>
+              </span>
+
               <button
                 onClick={onBackToHome}
                 className="px-3.5 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center gap-1.5"
@@ -874,10 +893,16 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
 
             <div className="flex items-center gap-3">
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold ${
-                supabaseConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                supabaseConnected || serverConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
               }`}>
-                <Database className="w-3 h-3" />
-                <span>{supabaseConnected ? 'Supabase Active' : 'Local Mode'}</span>
+                <Database className="w-3 h-3 text-emerald-600" />
+                <span>
+                  {supabaseConnected
+                    ? 'Supabase Cloud DB Active'
+                    : serverConnected
+                    ? 'Central Database Active'
+                    : 'Offline Cache Mode'}
+                </span>
               </span>
 
               <button

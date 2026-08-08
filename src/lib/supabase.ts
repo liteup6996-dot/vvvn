@@ -38,13 +38,52 @@ export const getSupabase = (): SupabaseClient | null => {
 
 export const setSupabaseCredentials = (url: string, key: string) => {
   if (url && key) {
-    localStorage.setItem('vocal_vantage_supabase_url', url.trim());
-    localStorage.setItem('vocal_vantage_supabase_key', key.trim());
-    const credentials = getCredentials();
-    supabaseInstance = createClient(credentials.url, credentials.key, {
-      auth: { persistSession: true, autoRefreshToken: true },
-    });
+    const cleanUrl = url.trim();
+    const cleanKey = key.trim();
+    localStorage.setItem('vocal_vantage_supabase_url', cleanUrl);
+    localStorage.setItem('vocal_vantage_supabase_key', cleanKey);
+    
+    try {
+      supabaseInstance = createClient(cleanUrl, cleanKey, {
+        auth: { persistSession: true, autoRefreshToken: true },
+      });
+    } catch (err) {
+      console.error('Error creating client:', err);
+    }
+
+    // Sync credentials to central Express server
+    fetch('/api/supabase/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: cleanUrl, key: cleanKey }),
+    }).catch((err) => console.warn('Failed to sync Supabase config to server:', err));
   }
+};
+
+export const initSupabaseFromBackend = async (): Promise<boolean> => {
+  try {
+    const res = await fetch('/api/supabase/config');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.configured) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not query /api/supabase/config:', err);
+  }
+
+  // Sync client credentials to backend if client has them
+  const credentials = getCredentials();
+  if (credentials.url && credentials.key) {
+    fetch('/api/supabase/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: credentials.url, key: credentials.key }),
+    }).catch(() => {});
+  }
+
+  return isSupabaseConfigured();
 };
 
 export const SUPABASE_SETUP_SQL = `-- Vocal Vantage Supabase Database Setup Script
@@ -96,28 +135,44 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Public Read Profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Public Insert Profiles" ON public.profiles;
-DROP POLICY IF EXISTS "Public Update Profiles" ON public.profiles;
-CREATE POLICY "Public Read Profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Public Insert Profiles" ON public.profiles FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Update Profiles" ON public.profiles FOR UPDATE USING (true);
+DO $$ 
+BEGIN
+    -- Profiles Policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Read Profiles' AND tablename = 'profiles') THEN
+        CREATE POLICY "Public Read Profiles" ON public.profiles FOR SELECT USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Insert Profiles' AND tablename = 'profiles') THEN
+        CREATE POLICY "Public Insert Profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Update Profiles' AND tablename = 'profiles') THEN
+        CREATE POLICY "Public Update Profiles" ON public.profiles FOR UPDATE USING (true);
+    END IF;
 
-DROP POLICY IF EXISTS "Public Read Assignments" ON public.assignments;
-DROP POLICY IF EXISTS "Public Insert Assignments" ON public.assignments;
-DROP POLICY IF EXISTS "Public Update Assignments" ON public.assignments;
-DROP POLICY IF EXISTS "Public Delete Assignments" ON public.assignments;
-CREATE POLICY "Public Read Assignments" ON public.assignments FOR SELECT USING (true);
-CREATE POLICY "Public Insert Assignments" ON public.assignments FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Update Assignments" ON public.assignments FOR UPDATE USING (true);
-CREATE POLICY "Public Delete Assignments" ON public.assignments FOR DELETE USING (true);
+    -- Assignments Policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Read Assignments' AND tablename = 'assignments') THEN
+        CREATE POLICY "Public Read Assignments" ON public.assignments FOR SELECT USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Insert Assignments' AND tablename = 'assignments') THEN
+        CREATE POLICY "Public Insert Assignments" ON public.assignments FOR INSERT WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Update Assignments' AND tablename = 'assignments') THEN
+        CREATE POLICY "Public Update Assignments" ON public.assignments FOR UPDATE USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Delete Assignments' AND tablename = 'assignments') THEN
+        CREATE POLICY "Public Delete Assignments" ON public.assignments FOR DELETE USING (true);
+    END IF;
 
-DROP POLICY IF EXISTS "Public Read Submissions" ON public.submissions;
-DROP POLICY IF EXISTS "Public Insert Submissions" ON public.submissions;
-DROP POLICY IF EXISTS "Public Update Submissions" ON public.submissions;
-CREATE POLICY "Public Read Submissions" ON public.submissions FOR SELECT USING (true);
-CREATE POLICY "Public Insert Submissions" ON public.submissions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Update Submissions" ON public.submissions FOR UPDATE USING (true);
+    -- Submissions Policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Read Submissions' AND tablename = 'submissions') THEN
+        CREATE POLICY "Public Read Submissions" ON public.submissions FOR SELECT USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Insert Submissions' AND tablename = 'submissions') THEN
+        CREATE POLICY "Public Insert Submissions" ON public.submissions FOR INSERT WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Update Submissions' AND tablename = 'submissions') THEN
+        CREATE POLICY "Public Update Submissions" ON public.submissions FOR UPDATE USING (true);
+    END IF;
+END $$;
 
 -- 5. Seed Default User Credentials
 INSERT INTO public.profiles (user_id_code, password, name, role, email, instructor_name, course_program, accent_type)
