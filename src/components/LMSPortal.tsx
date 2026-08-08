@@ -103,6 +103,21 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   useEffect(() => {
     loadAssignments();
     setSupabaseConnected(isSupabaseConfigured());
+
+    // Auto-refresh assignments every 5 seconds for real-time multi-device sync
+    const interval = setInterval(() => {
+      loadAssignments();
+    }, 5000);
+
+    const handleFocus = () => {
+      loadAssignments();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Synchronize assignments to localStorage as local fallback backup
