@@ -198,6 +198,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/assignments', async (req, res) => {
   const supabase = getSupabaseClient();
   let supabaseAssignments: any[] = [];
+  let isSupabaseActive = false;
 
   if (supabase) {
     try {
@@ -207,6 +208,7 @@ app.get('/api/assignments', async (req, res) => {
         .order('created_at', { ascending: false });
 
       if (!asgError && asgData) {
+        isSupabaseActive = true;
         const { data: subData } = await supabase.from('submissions').select('*');
         const subMap: Record<string, any> = {};
         if (subData) {
@@ -232,21 +234,30 @@ app.get('/api/assignments', async (req, res) => {
           status: row.status,
           submittedFile: subMap[row.id] || undefined,
         }));
+      } else {
+        if (asgError) console.error('Supabase fetch assignments error:', asgError);
       }
     } catch (err) {
       console.warn('Supabase fetch assignments warning:', err);
     }
   }
 
+  if (isSupabaseActive) {
+    return res.json({
+      success: true,
+      assignments: supabaseAssignments,
+      supabaseConnected: true,
+      source: 'supabase-cloud',
+    });
+  }
+
   const localAssignments = readJsonFile<any[]>(ASSIGNMENTS_FILE, []);
-
-  // Merge list (prefer Supabase if both exist, otherwise use combined non-duplicate)
-  const mapById = new Map<string, any>();
-  localAssignments.forEach((item) => mapById.set(item.id, item));
-  supabaseAssignments.forEach((item) => mapById.set(item.id, item));
-
-  const resultList = Array.from(mapById.values());
-  res.json({ success: true, assignments: resultList, supabaseConnected: Boolean(supabase) });
+  res.json({
+    success: true,
+    assignments: localAssignments,
+    supabaseConnected: Boolean(supabase),
+    source: 'local-fallback',
+  });
 });
 
 // API ROUTE: Create Assignment
@@ -260,19 +271,18 @@ app.post('/api/assignments', async (req, res) => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      const { error } = await supabase.from('assignments').upsert([
-        {
-          id: assignment.id,
-          student_id_code: studentIdCode,
-          title: assignment.title,
-          instructions: assignment.instructions,
-          assigned_date: assignment.assignedDate,
-          due_date: assignment.dueDate,
-          due_date_time_ms: assignment.dueDateTimeMs || null,
-          image_url: assignment.imageUrl || null,
-          status: assignment.status || 'Pending',
-        },
-      ]);
+      const payload = {
+        id: assignment.id,
+        student_id_code: studentIdCode || '625H',
+        title: assignment.title,
+        instructions: assignment.instructions,
+        assigned_date: assignment.assignedDate,
+        due_date: assignment.dueDate,
+        due_date_time_ms: assignment.dueDateTimeMs ? Number(assignment.dueDateTimeMs) : null,
+        image_url: assignment.imageUrl || null,
+        status: assignment.status || 'Pending',
+      };
+      const { error } = await supabase.from('assignments').upsert([payload], { onConflict: 'id' });
       if (!error) {
         savedToSupabase = true;
       } else {
@@ -303,10 +313,10 @@ app.post('/api/assignments/submit', async (req, res) => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      const { error: subErr } = await supabase.from('submissions').upsert([
+      const { error: subErr } = await supabase.from('submissions').insert([
         {
           assignment_id: assignmentId,
-          student_id_code: studentIdCode,
+          student_id_code: studentIdCode || '625H',
           file_name: submittedFile.name,
           file_size: submittedFile.size,
           file_type: submittedFile.type,
@@ -320,7 +330,12 @@ app.post('/api/assignments/submit', async (req, res) => {
         .update({ status: 'Submitted' })
         .eq('id', assignmentId);
 
-      if (!subErr && !updErr) savedToSupabase = true;
+      if (!subErr && !updErr) {
+        savedToSupabase = true;
+      } else {
+        if (subErr) console.error('Supabase submission insert error:', subErr);
+        if (updErr) console.error('Supabase assignment status update error:', updErr);
+      }
     } catch (err) {
       console.error('Supabase submit assignment error:', err);
     }
