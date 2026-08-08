@@ -276,3 +276,68 @@ export async function submitAssignmentInStore(
 
   return savedToSupabase;
 }
+
+/**
+ * Delete single assignment from Supabase DB and LocalStorage
+ */
+export async function deleteAssignmentInStore(asgId: string, storageKey: string): Promise<boolean> {
+  let deletedInSupabase = false;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('submissions').delete().eq('assignment_id', asgId);
+        const { error } = await supabase.from('assignments').delete().eq('id', asgId);
+        if (!error) {
+          deletedInSupabase = true;
+        }
+      } catch (err) {
+        console.error('Failed to delete assignment in Supabase:', err);
+      }
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsed: Assignment[] = JSON.parse(saved);
+      const filtered = parsed.filter((a) => a.id !== asgId);
+      localStorage.setItem(storageKey, JSON.stringify(filtered));
+    }
+  } catch {
+    // ignore
+  }
+
+  return deletedInSupabase;
+}
+
+/**
+ * Clear ALL assignments from Supabase DB and LocalStorage
+ */
+export async function clearAllAssignmentsInStore(storageKey: string): Promise<boolean> {
+  let clearedInSupabase = false;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        const { error } = await supabase.from('assignments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (!error) {
+          clearedInSupabase = true;
+        }
+      } catch (err) {
+        console.error('Failed to clear assignments in Supabase:', err);
+      }
+    }
+  }
+
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // ignore
+  }
+
+  return clearedInSupabase;
+}

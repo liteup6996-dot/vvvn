@@ -7,6 +7,8 @@ import {
   fetchAssignmentsFromStore,
   createAssignmentInStore,
   submitAssignmentInStore,
+  deleteAssignmentInStore,
+  clearAllAssignmentsInStore,
 } from '../services/lmsService';
 import {
   Upload,
@@ -33,7 +35,8 @@ import {
   Code,
   Copy,
   Check,
-  ClipboardList
+  ClipboardList,
+  Trash2,
 } from 'lucide-react';
 
 interface LMSPortalProps {
@@ -85,6 +88,9 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   const [dragActive, setDragActive] = useState<{ [asgId: string]: boolean }>({});
   const [submittingAsgId, setSubmittingAsgId] = useState<string | null>(null);
   const [submitSuccessMsg, setSubmitSuccessMsg] = useState<string | null>(null);
+
+  // Student Active vs Submitted Tab ('active' | 'submitted')
+  const [studentTab, setStudentTab] = useState<'active' | 'submitted'>('active');
 
   // Load assignments from Supabase DB or localStorage on mount
   const loadAssignments = async () => {
@@ -209,6 +215,22 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
     setTimeout(() => setCreateMsg(''), 4000);
   };
 
+  // Instructor Action: Clear All Assignments from store
+  const handleClearAllAssignments = async () => {
+    if (window.confirm('Are you sure you want to clear ALL assignments from database and storage?')) {
+      await clearAllAssignmentsInStore(STORAGE_KEY);
+      setAssignments([]);
+    }
+  };
+
+  // Instructor Action: Delete single assignment
+  const handleDeleteSingleAssignment = async (asgId: string) => {
+    if (window.confirm('Are you sure you want to delete this assignment permanently?')) {
+      await deleteAssignmentInStore(asgId, STORAGE_KEY);
+      setAssignments((prev) => prev.filter((a) => a.id !== asgId));
+    }
+  };
+
   // File selection for Student submission
   const handleFileChange = (asgId: string, file: File | null) => {
     setSelectedFiles((prev) => ({ ...prev, [asgId]: file }));
@@ -274,8 +296,9 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
 
       setSelectedFiles((prev) => ({ ...prev, [asg.id]: null }));
       setSubmittingAsgId(null);
-      setSubmitSuccessMsg('Assignment submitted successfully to portal & database!');
-      setTimeout(() => setSubmitSuccessMsg(null), 4000);
+      setSubmitSuccessMsg('Assignment submitted successfully! Moved to Submitted Assignments tab.');
+      setStudentTab('submitted');
+      setTimeout(() => setSubmitSuccessMsg(null), 5000);
     };
 
     reader.readAsDataURL(file);
@@ -673,16 +696,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                 {assignments.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to clear all assignments?')) {
-                        try {
-                          localStorage.removeItem(STORAGE_KEY);
-                        } catch {
-                          // ignore
-                        }
-                        setAssignments([]);
-                      }
-                    }}
+                    onClick={handleClearAllAssignments}
                     className="text-xs text-red-600 hover:text-red-800 font-semibold underline cursor-pointer"
                   >
                     Clear All
@@ -726,7 +740,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                           </div>
                         </div>
 
-                        <div>
+                        <div className="flex items-center gap-2">
                           {isSubmitted ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-md">
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -743,6 +757,15 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                               <span>Pending Submission</span>
                             </span>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSingleAssignment(asg.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                            title="Delete Assignment"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -900,221 +923,309 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
           </div>
         )}
 
-        {/* ACTIVE ASSIGNMENTS SECTION */}
+        {/* STUDENT ASSIGNMENTS TABS & SECTION */}
         <section className="space-y-6">
-          <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-            <h2 className="text-lg font-bold font-serif text-gray-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#7A1B28]" />
-              <span>ACTIVE ASSIGNMENTS</span>
-            </h2>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
-              {assignments.filter(a => a.status === 'Pending').length} Pending
-            </span>
+          {/* Tab Navigation Bar */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 pb-3">
+            <button
+              type="button"
+              onClick={() => setStudentTab('active')}
+              className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                studentTab === 'active'
+                  ? 'bg-[#7A1B28] text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Active Assignments ({assignments.filter((a) => a.status !== 'Submitted').length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStudentTab('submitted')}
+              className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                studentTab === 'submitted'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Submitted Assignments Bar ({assignments.filter((a) => a.status === 'Submitted').length})</span>
+            </button>
           </div>
 
           {isLoadingAssignments ? (
             <div className="p-8 text-center text-xs text-gray-500">Loading assignments from store...</div>
-          ) : assignments.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-              <p className="text-gray-900 font-semibold text-base">All Caught Up!</p>
-              <p className="text-xs text-gray-500">
-                You have no active pending home tasks. Check back after your next practice session with Mr. Abdulleh Hashmi.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {assignments.map((assignment) => {
-                const isClosed = assignment.dueDateTimeMs ? Date.now() > assignment.dueDateTimeMs : false;
-                const isSubmitted = assignment.status === 'Submitted';
-                const selectedFile = selectedFiles[assignment.id];
-                const isDrag = dragActive[assignment.id];
-                const isSubmitting = submittingAsgId === assignment.id;
+          ) : studentTab === 'active' ? (
+            /* ACTIVE ASSIGNMENTS TAB CONTENT */
+            assignments.filter((a) => a.status !== 'Submitted').length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+                <p className="text-gray-900 font-semibold text-base">All Caught Up!</p>
+                <p className="text-xs text-gray-500">
+                  You have no active pending assignments right now. Check back after your next session.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {assignments
+                  .filter((a) => a.status !== 'Submitted')
+                  .map((assignment) => {
+                    const isClosed = assignment.dueDateTimeMs ? Date.now() > assignment.dueDateTimeMs : false;
+                    const selectedFile = selectedFiles[assignment.id];
+                    const isDrag = dragActive[assignment.id];
+                    const isSubmitting = submittingAsgId === assignment.id;
 
-                return (
-                  <div
-                    key={assignment.id}
-                    className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6"
-                    id={`active-assignment-${assignment.id}`}
-                  >
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-gray-100 pb-4">
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#7A1B28] bg-[#7A1B28]/10 px-2.5 py-0.5 rounded-full inline-block">
-                          ASSIGNMENT TASK
-                        </span>
-                        <h3 className="text-xl sm:text-2xl font-bold font-serif text-gray-900">
-                          {assignment.title}
-                        </h3>
-                      </div>
+                    return (
+                      <div
+                        key={assignment.id}
+                        className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6"
+                        id={`active-assignment-${assignment.id}`}
+                      >
+                        {/* Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-gray-100 pb-4">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#7A1B28] bg-[#7A1B28]/10 px-2.5 py-0.5 rounded-full inline-block">
+                              ASSIGNMENT TASK
+                            </span>
+                            <h3 className="text-xl sm:text-2xl font-bold font-serif text-gray-900">
+                              {assignment.title}
+                            </h3>
+                          </div>
 
-                      <div className="flex flex-wrap items-center gap-3 text-xs shrink-0">
-                        <div className="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-md">
-                          <span className="text-gray-400 block text-[10px] uppercase font-semibold">Assigned Date</span>
-                          <span className="font-semibold text-gray-800">{assignment.assignedDate}</span>
+                          <div className="flex flex-wrap items-center gap-3 text-xs shrink-0">
+                            <div className="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-md">
+                              <span className="text-gray-400 block text-[10px] uppercase font-semibold">Assigned Date</span>
+                              <span className="font-semibold text-gray-800">{assignment.assignedDate}</span>
+                            </div>
+                            <div className="bg-red-50/80 border border-red-200/80 px-3 py-1.5 rounded-md">
+                              <span className="text-red-600 block text-[10px] uppercase font-semibold">Deadline</span>
+                              <span className={`font-bold flex items-center gap-1 ${isClosed ? 'text-gray-600' : 'text-red-700'}`}>
+                                <Clock className="w-3.5 h-3.5" />
+                                {assignment.dueDate}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="bg-red-50/80 border border-red-200/80 px-3 py-1.5 rounded-md">
-                          <span className="text-red-600 block text-[10px] uppercase font-semibold">Deadline</span>
-                          <span className={`font-bold flex items-center gap-1 ${isClosed ? 'text-gray-600' : 'text-red-700'}`}>
-                            <Clock className="w-3.5 h-3.5" />
-                            {assignment.dueDate}
-                          </span>
+
+                        {/* Status Badge */}
+                        <div className="flex items-center gap-2">
+                          {isClosed ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-red-50 text-red-700 border border-red-200 text-xs font-bold shadow-2xs">
+                              <Lock className="w-4 h-4" />
+                              <span>Assignment Due and Closed</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold shadow-2xs">
+                              <Clock className="w-4 h-4" />
+                              <span>Pending Submission</span>
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Status Badge */}
-                    <div className="flex items-center gap-2">
-                      {isSubmitted ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold shadow-2xs">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Submitted</span>
-                        </span>
-                      ) : isClosed ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-red-50 text-red-700 border border-red-200 text-xs font-bold shadow-2xs">
-                          <Lock className="w-4 h-4" />
-                          <span>Assignment Due and Closed</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold shadow-2xs">
-                          <Clock className="w-4 h-4" />
-                          <span>Pending Submission</span>
-                        </span>
-                      )}
-                    </div>
+                        {/* Instructions / Description Box */}
+                        <div className="bg-slate-50/90 border-l-4 border-l-[#7A1B28] border border-slate-200/80 rounded-r-xl p-5 space-y-3.5 shadow-2xs">
+                          <div className="flex items-center gap-2 border-b border-slate-200/70 pb-2.5">
+                            <ClipboardList className="w-4.5 h-4.5 text-[#7A1B28]" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                              Task Description & Instructions
+                            </span>
+                          </div>
 
-                    {/* Instructions / Description Box */}
-                    <div className="bg-slate-50/90 border-l-4 border-l-[#7A1B28] border border-slate-200/80 rounded-r-xl p-5 space-y-3.5 shadow-2xs">
-                      <div className="flex items-center gap-2 border-b border-slate-200/70 pb-2.5">
-                        <ClipboardList className="w-4.5 h-4.5 text-[#7A1B28]" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                          Task Description & Instructions
-                        </span>
-                      </div>
+                          <div className="text-sm sm:text-base text-slate-800 leading-relaxed font-normal whitespace-pre-line pl-0.5">
+                            {assignment.instructions}
+                          </div>
 
-                      <div className="text-sm sm:text-base text-slate-800 leading-relaxed font-normal whitespace-pre-line pl-0.5">
-                        {assignment.instructions}
-                      </div>
-
-                      {/* Image Attachment if instructor included one */}
-                      {assignment.imageUrl && (
-                        <div className="pt-3 border-t border-slate-200/70 mt-3">
-                          <p className="text-xs font-semibold text-slate-600 mb-2.5 flex items-center gap-1.5">
-                            <ImageIcon className="w-4 h-4 text-[#7A1B28]" />
-                            <span>Attached Diagram / Reference Material:</span>
-                          </p>
-                          <img
-                            src={assignment.imageUrl}
-                            alt="Task Reference"
-                            className="max-h-64 rounded-xl border border-slate-200 object-cover shadow-2xs"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* SUBMISSION / DUE CLOSED SECTION */}
-                    {isSubmitted ? (
-                      <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-lg flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
-                            Submitted Task File
-                          </p>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {assignment.submittedFile?.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Submitted on {assignment.submittedFile?.date}
-                          </p>
-                        </div>
-                        {assignment.submittedFile?.dataUrl && (
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadFile(assignment.submittedFile!)}
-                            className="px-3.5 py-1.5 bg-[#7A1B28] text-white rounded-md text-xs font-semibold hover:bg-[#621520] transition-colors inline-flex items-center gap-1.5"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Download</span>
-                          </button>
-                        )}
-                      </div>
-                    ) : isClosed ? (
-                      <div className="p-4 bg-gray-100 border border-gray-200 rounded-lg flex items-center gap-3 text-gray-600 text-xs">
-                        <Lock className="w-5 h-5 text-gray-400 shrink-0" />
-                        <span>
-                          <strong>Assignment Due and Closed: </strong> The deadline for this task has passed. Submissions are no longer accepted.
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-wider text-gray-700">
-                          Submit Assignment
-                        </p>
-
-                        <div
-                          onDragOver={(e) => handleDragOver(e, assignment.id)}
-                          onDragLeave={(e) => handleDragLeave(e, assignment.id)}
-                          onDrop={(e) => handleDrop(e, assignment.id)}
-                          className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all ${
-                            isDrag
-                              ? 'border-[#7A1B28] bg-[#7A1B28]/5'
-                              : 'border-gray-300 hover:border-gray-400 bg-gray-50/30'
-                          }`}
-                        >
-                          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          
-                          <p className="text-sm font-medium text-gray-700 mb-1">
-                            Drag and drop your recording or document here
-                          </p>
-                          <p className="text-xs text-gray-400 mb-4">
-                            Supports MP3, M4A, WAV, MP4, PDF, DOCX, and Image files
-                          </p>
-
-                          <label className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 cursor-pointer">
-                            <span>Choose File</span>
-                            <input
-                              type="file"
-                              accept=".mp3,.m4a,.wav,.mp4,.pdf,.docx,.doc,image/*"
-                              onChange={(e) =>
-                                handleFileChange(
-                                  assignment.id,
-                                  e.target.files && e.target.files[0] ? e.target.files[0] : null
-                                )
-                              }
-                              className="hidden"
-                            />
-                          </label>
-
-                          {/* Selected File Feedback */}
-                          {selectedFile && (
-                            <div className="mt-4 p-3 bg-white border border-emerald-200 rounded-md inline-flex items-center gap-3 text-left">
-                              <FileCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                              <div className="text-xs">
-                                <p className="font-semibold text-gray-900">{selectedFile.name}</p>
-                                <p className="text-gray-500">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                              </div>
+                          {/* Image Attachment if instructor included one */}
+                          {assignment.imageUrl && (
+                            <div className="pt-3 border-t border-slate-200/70 mt-3">
+                              <p className="text-xs font-semibold text-slate-600 mb-2.5 flex items-center gap-1.5">
+                                <ImageIcon className="w-4 h-4 text-[#7A1B28]" />
+                                <span>Attached Diagram / Reference Material:</span>
+                              </p>
+                              <img
+                                src={assignment.imageUrl}
+                                alt="Task Reference"
+                                className="max-h-64 rounded-xl border border-slate-200 object-cover shadow-2xs"
+                              />
                             </div>
                           )}
                         </div>
 
-                        {selectedFile && (
-                          <div className="flex justify-end pt-2">
-                            <button
-                              type="button"
-                              onClick={() => handleSubmitAssignment(assignment)}
-                              disabled={isSubmitting}
-                              className="px-6 py-2.5 bg-[#7A1B28] text-white rounded-md text-xs font-semibold uppercase tracking-wider hover:bg-[#621520] transition-colors inline-flex items-center gap-2 shadow-2xs disabled:opacity-50 cursor-pointer"
+                        {/* SUBMISSION FORM */}
+                        {isClosed ? (
+                          <div className="p-4 bg-gray-100 border border-gray-200 rounded-lg flex items-center gap-3 text-gray-600 text-xs">
+                            <Lock className="w-5 h-5 text-gray-400 shrink-0" />
+                            <span>
+                              <strong>Assignment Due and Closed: </strong> The deadline for this task has passed. Submissions are no longer accepted.
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                              Submit Assignment
+                            </p>
+
+                            <div
+                              onDragOver={(e) => handleDragOver(e, assignment.id)}
+                              onDragLeave={(e) => handleDragLeave(e, assignment.id)}
+                              onDrop={(e) => handleDrop(e, assignment.id)}
+                              className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all ${
+                                isDrag
+                                  ? 'border-[#7A1B28] bg-[#7A1B28]/5'
+                                  : 'border-gray-300 hover:border-gray-400 bg-gray-50/30'
+                              }`}
                             >
-                              <Upload className="w-4 h-4" />
-                              <span>{isSubmitting ? 'Submitting File...' : 'Submit Task Recording'}</span>
-                            </button>
+                              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                              
+                              <p className="text-sm font-medium text-gray-700 mb-1">
+                                Drag and drop your recording or document here
+                              </p>
+                              <p className="text-xs text-gray-400 mb-4">
+                                Supports MP3, M4A, WAV, MP4, PDF, DOCX, and Image files
+                              </p>
+
+                              <label className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 cursor-pointer">
+                                <span>Choose File</span>
+                                <input
+                                  type="file"
+                                  accept=".mp3,.m4a,.wav,.mp4,.pdf,.docx,.doc,image/*"
+                                  onChange={(e) =>
+                                    handleFileChange(
+                                      assignment.id,
+                                      e.target.files && e.target.files[0] ? e.target.files[0] : null
+                                    )
+                                  }
+                                  className="hidden"
+                                />
+                              </label>
+
+                              {/* Selected File Feedback */}
+                              {selectedFile && (
+                                <div className="mt-4 p-3 bg-white border border-emerald-200 rounded-md inline-flex items-center gap-3 text-left">
+                                  <FileCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                                  <div className="text-xs">
+                                    <p className="font-semibold text-gray-900">{selectedFile.name}</p>
+                                    <p className="text-gray-500">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {selectedFile && (
+                              <div className="flex justify-end pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSubmitAssignment(assignment)}
+                                  disabled={isSubmitting}
+                                  className="px-6 py-2.5 bg-[#7A1B28] text-white rounded-md text-xs font-semibold uppercase tracking-wider hover:bg-[#621520] transition-colors inline-flex items-center gap-2 shadow-2xs disabled:opacity-50 cursor-pointer"
+                                >
+                                  <Upload className="w-4 h-4" />
+                                  <span>{isSubmitting ? 'Submitting File...' : 'Submit Task Recording'}</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+              </div>
+            )
+          ) : (
+            /* SUBMITTED ASSIGNMENTS TAB CONTENT */
+            assignments.filter((a) => a.status === 'Submitted').length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
+                <FileText className="w-10 h-10 text-gray-300 mx-auto" />
+                <p className="text-gray-900 font-semibold text-base">No Submitted Assignments Yet</p>
+                <p className="text-xs text-gray-500">
+                  When you submit work for an active task, it will be safely listed here in your submitted bar.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {assignments
+                  .filter((a) => a.status === 'Submitted')
+                  .map((assignment) => (
+                    <div
+                      key={assignment.id}
+                      className="bg-white rounded-xl border border-emerald-200 p-6 sm:p-8 shadow-xs space-y-6"
+                    >
+                      {/* Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-gray-100 pb-4">
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full inline-block">
+                            SUBMITTED TASK
+                          </span>
+                          <h3 className="text-xl sm:text-2xl font-bold font-serif text-gray-900">
+                            {assignment.title}
+                          </h3>
+                        </div>
+
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Submitted & Cloud Saved</span>
+                        </span>
+                      </div>
+
+                      {/* Instructions / Description Box */}
+                      <div className="bg-slate-50/90 border-l-4 border-l-emerald-600 border border-slate-200/80 rounded-r-xl p-5 space-y-3.5 shadow-2xs">
+                        <div className="flex items-center gap-2 border-b border-slate-200/70 pb-2.5">
+                          <ClipboardList className="w-4.5 h-4.5 text-emerald-700" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                            Task Description & Instructions
+                          </span>
+                        </div>
+
+                        <div className="text-sm sm:text-base text-slate-800 leading-relaxed font-normal whitespace-pre-line pl-0.5">
+                          {assignment.instructions}
+                        </div>
+
+                        {assignment.imageUrl && (
+                          <div className="pt-3 border-t border-slate-200/70 mt-3">
+                            <p className="text-xs font-semibold text-slate-600 mb-2.5 flex items-center gap-1.5">
+                              <ImageIcon className="w-4 h-4 text-emerald-700" />
+                              <span>Attached Diagram / Reference Material:</span>
+                            </p>
+                            <img
+                              src={assignment.imageUrl}
+                              alt="Task Reference"
+                              className="max-h-64 rounded-xl border border-slate-200 object-cover shadow-2xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Submitted File Details Card */}
+                      <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                            <FileCheck className="w-4 h-4 text-emerald-600" />
+                            <span>Submitted Task File</span>
+                          </p>
+                          <p className="text-sm font-bold text-gray-900">
+                            {assignment.submittedFile?.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Size: {assignment.submittedFile?.size} • Submitted on {assignment.submittedFile?.date}
+                          </p>
+                        </div>
+
+                        {assignment.submittedFile?.dataUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadFile(assignment.submittedFile!)}
+                            className="px-4 py-2 bg-[#7A1B28] text-white rounded-md text-xs font-semibold hover:bg-[#621520] transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download Submission</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )
           )}
         </section>
 

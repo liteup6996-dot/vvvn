@@ -1,18 +1,16 @@
 /// <reference types="vite/client" />
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || '';
+const getCredentials = () => {
+  const env = (import.meta as any).env || {};
+  const url = env.VITE_SUPABASE_URL || localStorage.getItem('vocal_vantage_supabase_url') || '';
+  const key = env.VITE_SUPABASE_ANON_KEY || localStorage.getItem('vocal_vantage_supabase_key') || '';
+  return { url: url.trim(), key: key.trim() };
+};
 
 export const isSupabaseConfigured = (): boolean => {
-  return Boolean(
-    supabaseUrl &&
-    supabaseUrl.trim().length > 0 &&
-    supabaseUrl.startsWith('http') &&
-    supabaseAnonKey &&
-    supabaseAnonKey.trim().length > 0
-  );
+  const { url, key } = getCredentials();
+  return Boolean(url && url.length > 0 && url.startsWith('http') && key && key.length > 0);
 };
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -21,9 +19,10 @@ export const getSupabase = (): SupabaseClient | null => {
   if (!isSupabaseConfigured()) {
     return null;
   }
+  const { url, key } = getCredentials();
   if (!supabaseInstance) {
     try {
-      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      supabaseInstance = createClient(url, key, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
@@ -35,6 +34,17 @@ export const getSupabase = (): SupabaseClient | null => {
     }
   }
   return supabaseInstance;
+};
+
+export const setSupabaseCredentials = (url: string, key: string) => {
+  if (url && key) {
+    localStorage.setItem('vocal_vantage_supabase_url', url.trim());
+    localStorage.setItem('vocal_vantage_supabase_key', key.trim());
+    const credentials = getCredentials();
+    supabaseInstance = createClient(credentials.url, credentials.key, {
+      auth: { persistSession: true, autoRefreshToken: true },
+    });
+  }
 };
 
 export const SUPABASE_SETUP_SQL = `-- Vocal Vantage Supabase Database Setup Script
