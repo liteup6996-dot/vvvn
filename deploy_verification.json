@@ -1,0 +1,6 @@
+{
+  "updated_at": "2026-08-08T14:49:32Z",
+  "version": "1.0.1-live-supabase-cloud",
+  "description": "Verification file to confirm GitHub and Vercel are deploying the latest codebase.",
+  "status": "active"
+}
