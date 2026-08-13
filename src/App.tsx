@@ -11,6 +11,7 @@ import { InstructorBanner } from './components/InstructorBanner';
 import { LMSPortal } from './components/LMSPortal';
 import { Footer } from './components/Footer';
 import { PrivacyTermsModal, PolicyType } from './components/PrivacyTermsModal';
+import { WhatsAppButton } from './components/WhatsAppButton';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<PageView>('home');
@@ -118,6 +119,9 @@ export default function App() {
 
       {/* PRIVACY & TERMS MODAL */}
       <PrivacyTermsModal type={modalType} onClose={() => setModalType(null)} />
+
+      {/* FLOATING WHATSAPP BUTTON */}
+      <WhatsAppButton />
     </div>
   );
 }
