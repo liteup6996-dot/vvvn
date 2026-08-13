@@ -10,7 +10,7 @@ import { ContactSection } from './components/ContactSection';
 import { InstructorBanner } from './components/InstructorBanner';
 import { LMSPortal } from './components/LMSPortal';
 import { Footer } from './components/Footer';
-import { PrivacyTermsModal } from './components/PrivacyTermsModal';
+import { PrivacyTermsModal, PolicyType } from './components/PrivacyTermsModal';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<PageView>('home');
@@ -19,7 +19,7 @@ export default function App() {
   const [contactInfo, setContactInfo] = useState<ContactInfo>(DEFAULT_CONTACT_INFO);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<StudentProfile>(ABDUL_REHMAN_STUDENT);
-  const [modalType, setModalType] = useState<'terms' | 'privacy' | null>(null);
+  const [modalType, setModalType] = useState<PolicyType | null>(null);
 
   // Smooth scroll helper
   const handleNavigateSection = (sectionId: string) => {

@@ -1,12 +1,14 @@
 import React from 'react';
 import { PageView, ContactInfo } from '../types';
 import { LOGO_URL } from '../data';
-import { Instagram } from 'lucide-react';
+import { Instagram, MapPin } from 'lucide-react';
+import { TrustBoxWidget } from './TrustBoxWidget';
+import { PolicyType } from './PrivacyTermsModal';
 
 interface FooterProps {
   onNavigate: (view: PageView, sectionId?: string) => void;
   contactInfo: ContactInfo;
-  onOpenPrivacyTerms: (type: 'terms' | 'privacy') => void;
+  onOpenPrivacyTerms: (type: PolicyType) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -42,35 +44,35 @@ export const Footer: React.FC<FooterProps> = ({
           <nav className="flex flex-wrap items-center justify-center gap-6 text-xs font-semibold uppercase tracking-wider text-gray-600">
             <button
               onClick={() => onNavigate('home', 'hero')}
-              className="hover:text-[#7A1B28] transition-colors"
+              className="hover:text-[#7A1B28] transition-colors cursor-pointer"
               id="footer-nav-home"
             >
               Home
             </button>
             <button
               onClick={() => onNavigate('home', 'courses')}
-              className="hover:text-[#7A1B28] transition-colors"
+              className="hover:text-[#7A1B28] transition-colors cursor-pointer"
               id="footer-nav-courses"
             >
               Courses
             </button>
             <button
               onClick={() => onNavigate('team')}
-              className="hover:text-[#7A1B28] transition-colors"
+              className="hover:text-[#7A1B28] transition-colors cursor-pointer"
               id="footer-nav-team"
             >
               Our Team
             </button>
             <button
               onClick={() => onNavigate('lms')}
-              className="hover:text-[#7A1B28] transition-colors"
+              className="hover:text-[#7A1B28] transition-colors cursor-pointer"
               id="footer-nav-lms"
             >
               LMS
             </button>
             <button
               onClick={() => onNavigate('home', 'contact')}
-              className="hover:text-[#7A1B28] transition-colors"
+              className="hover:text-[#7A1B28] transition-colors cursor-pointer"
               id="footer-nav-contact"
             >
               Contact Us
@@ -93,24 +95,50 @@ export const Footer: React.FC<FooterProps> = ({
 
         </div>
 
-        {/* Bottom Legal bar */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
-          <p>© {new Date().getFullYear()} Vocal Vantage. All rights reserved.</p>
+        {/* TrustBox Review Collector Widget */}
+        <div className="py-4 border-b border-gray-100 flex justify-center">
+          <TrustBoxWidget />
+        </div>
 
-          <div className="flex items-center gap-6">
+        {/* Bottom Legal bar & Office Address */}
+        <div className="pt-6 flex flex-col lg:flex-row items-center justify-between text-xs text-gray-400 gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-left">
+            <p>© {new Date().getFullYear()} Vocal Vantage. All rights reserved.</p>
+            <span className="hidden sm:inline text-gray-300">•</span>
+            <p className="flex items-center gap-1.5 text-gray-500">
+              <MapPin className="w-3.5 h-3.5 text-[#7A1B28] shrink-0" />
+              <span>VV-Office, Gate 1, University Road, Sargodha, Punjab, Pakistan</span>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <button
               onClick={() => onOpenPrivacyTerms('terms')}
-              className="hover:text-gray-600 transition-colors"
+              className="hover:text-gray-700 transition-colors cursor-pointer"
               id="footer-terms-btn"
             >
               Terms & Conditions
             </button>
             <button
               onClick={() => onOpenPrivacyTerms('privacy')}
-              className="hover:text-gray-600 transition-colors"
+              className="hover:text-gray-700 transition-colors cursor-pointer"
               id="footer-privacy-btn"
             >
               Privacy Policy
+            </button>
+            <button
+              onClick={() => onOpenPrivacyTerms('refund')}
+              className="hover:text-gray-700 transition-colors cursor-pointer"
+              id="footer-refund-btn"
+            >
+              Refund Policy
+            </button>
+            <button
+              onClick={() => onOpenPrivacyTerms('delivery')}
+              className="hover:text-gray-700 transition-colors cursor-pointer"
+              id="footer-delivery-btn"
+            >
+              Service Delivery Policy
             </button>
           </div>
         </div>
@@ -119,3 +147,4 @@ export const Footer: React.FC<FooterProps> = ({
     </footer>
   );
 };
+

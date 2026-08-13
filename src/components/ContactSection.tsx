@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ContactInfo, AccentType } from '../types';
-import { Mail, Phone, Instagram, Send, CheckCircle2, Edit3, Save, X } from 'lucide-react';
+import { Mail, Phone, Instagram, Send, CheckCircle2, Edit3, Save, X, MapPin } from 'lucide-react';
 
 interface ContactSectionProps {
   contactInfo: ContactInfo;
@@ -201,6 +201,19 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       >
                         {contactInfo.instagramHandle}
                       </a>
+                    </div>
+                  </div>
+
+                  {/* Office Address */}
+                  <div className="flex items-start gap-4">
+                    <div className="p-2.5 rounded-md bg-white text-[#7A1B28] border border-gray-200/80 shrink-0">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Office Address</p>
+                      <p className="text-sm font-semibold text-gray-900 leading-snug">
+                        VV-Office, Gate 1, University Road, Sargodha, Punjab, Pakistan
+                      </p>
                     </div>
                   </div>
                 </div>
