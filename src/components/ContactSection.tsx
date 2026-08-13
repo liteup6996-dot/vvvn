@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ContactInfo, AccentType } from '../types';
 import { Mail, Phone, Instagram, Send, CheckCircle2, Edit3, Save, X, MapPin } from 'lucide-react';
+import { submitContactForm } from '../services/lmsService';
 
 interface ContactSectionProps {
   contactInfo: ContactInfo;
@@ -18,10 +19,12 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     email: '',
     phone: '',
     interestedIn: selectedCoursePref || ('American Accent' as AccentType),
+    sessionFormat: 'Both Options (Group & 1-on-1)',
     message: '',
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [editableInfo, setEditableInfo] = useState<ContactInfo>(contactInfo);
 
@@ -32,9 +35,27 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     }
   }, [selectedCoursePref]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+
+    try {
+      await submitContactForm({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        interestedIn: formData.interestedIn,
+        sessionFormat: formData.sessionFormat,
+        message: formData.message,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Contact submit error:', err);
+      // Still show submission state so user has feedback
+      setSubmitted(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const saveContactEdit = () => {
@@ -327,7 +348,8 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       Preferred Session Format *
                     </label>
                     <select
-                      defaultValue="Both Options (Group & 1-on-1)"
+                      value={formData.sessionFormat}
+                      onChange={(e) => setFormData({ ...formData, sessionFormat: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28] bg-white"
                       id="select-session-format"
                     >
@@ -357,11 +379,12 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                 {/* Submit Query Button */}
                 <button
                   type="submit"
-                  className="w-full py-4 px-6 bg-[#7A1B28] text-white font-semibold text-base uppercase tracking-wider rounded-md hover:bg-[#621520] transition-colors shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full py-4 px-6 bg-[#7A1B28] text-white font-semibold text-base uppercase tracking-wider rounded-md hover:bg-[#621520] transition-colors shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   id="btn-submit-query"
                 >
                   <Send className="w-4 h-4" />
-                  <span>Submit Query</span>
+                  <span>{isSubmitting ? 'Submitting to Database...' : 'Submit Query'}</span>
                 </button>
               </form>
             )}

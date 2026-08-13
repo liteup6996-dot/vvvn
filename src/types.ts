@@ -27,7 +27,20 @@ export interface ContactFormData {
   email: string;
   phone: string;
   interestedIn: AccentType;
+  sessionFormat?: string;
   message: string;
+}
+
+export interface ContactSubmissionRecord {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  interestedIn: string;
+  sessionFormat?: string;
+  message: string;
+  submittedAt: string;
+  status: 'New' | 'Contacted' | 'Enrolled' | string;
 }
 
 export interface Assignment {

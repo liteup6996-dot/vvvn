@@ -1,12 +1,17 @@
 import { getSupabase, isSupabaseConfigured, initSupabaseFromBackend } from '../lib/supabase';
-import { Assignment, StudentProfile } from '../types';
+import { Assignment, StudentProfile, ContactSubmissionRecord } from '../types';
 import { ABDUL_REHMAN_STUDENT } from '../data';
 
 export interface UserAuthResult {
   success: boolean;
-  role?: 'student' | 'instructor';
+  role?: 'student' | 'instructor' | 'admin';
   studentProfile?: StudentProfile;
   instructorInfo?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  adminInfo?: {
     id: string;
     name: string;
     email: string;
@@ -16,15 +21,29 @@ export interface UserAuthResult {
 }
 
 /**
- * Authenticate student or teacher via Express Server (or Supabase/Local Fallback)
+ * Authenticate student, teacher, or admin via Express Server (or Supabase/Local Fallback)
  */
 export async function authenticateUser(
-  role: 'student' | 'instructor',
+  role: 'student' | 'instructor' | 'admin',
   identifier: string,
   pass: string
 ): Promise<UserAuthResult> {
   const cleanId = identifier.trim();
   const cleanPass = pass.trim();
+
+  // Admin explicit local check (username: 123123, passcode: 1122)
+  if (role === 'admin' && cleanId === '123123' && cleanPass === '1122') {
+    return {
+      success: true,
+      role: 'admin',
+      adminInfo: {
+        id: '123123',
+        name: 'Vocal Vantage Administrator',
+        email: 'admin@vocalvantage.online',
+      },
+      source: 'local',
+    };
+  }
 
   // 1. Try Express Server Auth Endpoint
   try {
@@ -42,6 +61,7 @@ export async function authenticateUser(
           role: data.role,
           studentProfile: data.studentProfile,
           instructorInfo: data.instructorInfo,
+          adminInfo: data.adminInfo,
           source: data.source || 'server-local',
         };
       } else {
@@ -448,4 +468,92 @@ export async function clearAllAssignmentsInStore(storageKey: string): Promise<bo
   } catch {}
 
   return true;
+}
+
+/**
+ * Submit contact inquiry to database
+ */
+export async function submitContactForm(data: {
+  fullName: string;
+  email: string;
+  phone: string;
+  interestedIn: string;
+  sessionFormat?: string;
+  message: string;
+}): Promise<{ success: boolean; submission?: ContactSubmissionRecord }> {
+  try {
+    const res = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const result = await res.json();
+      return result;
+    }
+  } catch (err) {
+    console.error('Submit contact form API error:', err);
+  }
+  return { success: false };
+}
+
+/**
+ * Fetch all contact form submissions from database
+ */
+export async function fetchContactSubmissions(): Promise<ContactSubmissionRecord[]> {
+  try {
+    const res = await fetch('/api/contacts');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.contacts)) {
+        return data.contacts;
+      }
+    }
+  } catch (err) {
+    console.error('Fetch contact submissions API error:', err);
+  }
+  return [];
+}
+
+/**
+ * Delete single contact submission from database
+ */
+export async function deleteContactSubmission(subId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/contacts/${subId}`, { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.error('Delete contact submission error:', err);
+    return false;
+  }
+}
+
+/**
+ * Clear all contact submissions from database
+ */
+export async function clearAllContactSubmissions(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/contacts', { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.error('Clear contact submissions error:', err);
+    return false;
+  }
+}
+
+/**
+ * Update contact submission status
+ */
+export async function updateContactStatus(subId: string, status: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/contacts/${subId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Update contact status error:', err);
+    return false;
+  }
 }

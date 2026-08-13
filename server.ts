@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Ensure data directory and storage files exist
 const DATA_DIR = path.join(process.cwd(), 'data');
 const ASSIGNMENTS_FILE = path.join(DATA_DIR, 'assignments.json');
+const CONTACTS_FILE = path.join(DATA_DIR, 'contact_submissions.json');
 const SUPABASE_CONFIG_FILE = path.join(DATA_DIR, 'supabase_config.json');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -21,6 +22,35 @@ if (!fs.existsSync(DATA_DIR)) {
 
 if (!fs.existsSync(ASSIGNMENTS_FILE)) {
   fs.writeFileSync(ASSIGNMENTS_FILE, JSON.stringify([]), 'utf-8');
+}
+
+if (!fs.existsSync(CONTACTS_FILE)) {
+  // Seed with sample initial inquiry for instant admin view
+  const initialContacts = [
+    {
+      id: 'sub-sample-01',
+      fullName: 'Eleanor Vance',
+      email: 'eleanor.vance@example.com',
+      phone: '+1 (555) 234-5678',
+      interestedIn: 'American Accent',
+      sessionFormat: 'One-on-One Session',
+      message: 'Looking to refine American pronunciation for executive presentations.',
+      submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+      status: 'New',
+    },
+    {
+      id: 'sub-sample-02',
+      fullName: 'Muhammad Ali',
+      email: 'm.ali@example.com',
+      phone: '+92 300 1234567',
+      interestedIn: 'British Accent',
+      sessionFormat: 'Group Session',
+      message: 'Inquiring about upcoming RP British accent group masterclass batch schedule.',
+      submittedAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+      status: 'Contacted',
+    },
+  ];
+  fs.writeFileSync(CONTACTS_FILE, JSON.stringify(initialContacts, null, 2), 'utf-8');
 }
 
 if (!fs.existsSync(SUPABASE_CONFIG_FILE)) {
@@ -110,6 +140,23 @@ app.post('/api/auth/login', async (req, res) => {
   const cleanId = (identifier || '').trim();
   const cleanPass = (password || '').trim();
 
+  // Admin Login Check (username: 123123, passcode: 1122)
+  if (role === 'admin' || (cleanId === '123123' && cleanPass === '1122' && role === 'admin')) {
+    if (cleanId === '123123' && cleanPass === '1122') {
+      return res.json({
+        success: true,
+        role: 'admin',
+        adminInfo: {
+          id: '123123',
+          name: 'Vocal Vantage Administrator',
+          email: 'admin@vocalvantage.online',
+        },
+        source: 'server-local',
+      });
+    }
+    return res.status(401).json({ success: false, errorMessage: 'Invalid Admin username or passcode.' });
+  }
+
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
@@ -192,6 +239,142 @@ app.post('/api/auth/login', async (req, res) => {
     }
     return res.status(401).json({ success: false, errorMessage: 'Invalid Instructor ID or password.' });
   }
+});
+
+// API ROUTE: Fetch Contact Submissions
+app.get('/api/contacts', async (req, res) => {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('contact_submissions')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const contacts = data.map((row) => ({
+          id: row.id,
+          fullName: row.full_name,
+          email: row.email,
+          phone: row.phone,
+          interestedIn: row.interested_in,
+          sessionFormat: row.session_format,
+          message: row.message,
+          submittedAt: row.submitted_at,
+          status: row.status || 'New',
+        }));
+        return res.json({ success: true, contacts, source: 'supabase' });
+      }
+    } catch (err) {
+      console.warn('Supabase fetch contacts error:', err);
+    }
+  }
+
+  const localContacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  res.json({ success: true, contacts: localContacts, source: 'server-local' });
+});
+
+// API ROUTE: Create Contact Submission
+app.post('/api/contacts', async (req, res) => {
+  const { fullName, email, phone, interestedIn, sessionFormat, message } = req.body;
+  if (!fullName || !email || !phone) {
+    return res.status(400).json({ success: false, message: 'Name, email and phone are required.' });
+  }
+
+  const newSubmission = {
+    id: `sub-${Date.now()}`,
+    fullName: String(fullName).trim(),
+    email: String(email).trim(),
+    phone: String(phone).trim(),
+    interestedIn: String(interestedIn || 'American Accent').trim(),
+    sessionFormat: String(sessionFormat || 'Both Options (Group & 1-on-1)').trim(),
+    message: String(message || '').trim(),
+    submittedAt: new Date().toISOString(),
+    status: 'New',
+  };
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('contact_submissions').insert([
+        {
+          id: newSubmission.id,
+          full_name: newSubmission.fullName,
+          email: newSubmission.email,
+          phone: newSubmission.phone,
+          interested_in: newSubmission.interestedIn,
+          session_format: newSubmission.sessionFormat,
+          message: newSubmission.message,
+          submitted_at: newSubmission.submittedAt,
+          status: newSubmission.status,
+        },
+      ]);
+    } catch (err) {
+      console.warn('Supabase contact insert warning:', err);
+    }
+  }
+
+  const contacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  contacts.unshift(newSubmission);
+  writeJsonFile(CONTACTS_FILE, contacts);
+
+  res.json({ success: true, submission: newSubmission });
+});
+
+// API ROUTE: Update Contact Submission Status
+app.patch('/api/contacts/:id/status', async (req, res) => {
+  const subId = req.params.id;
+  const { status } = req.body;
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('contact_submissions').update({ status }).eq('id', subId);
+    } catch (err) {
+      console.warn('Supabase update contact status error:', err);
+    }
+  }
+
+  const contacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  const updated = contacts.map((c) => (c.id === subId ? { ...c, status } : c));
+  writeJsonFile(CONTACTS_FILE, updated);
+
+  res.json({ success: true });
+});
+
+// API ROUTE: Delete Single Contact Submission
+app.delete('/api/contacts/:id', async (req, res) => {
+  const subId = req.params.id;
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('contact_submissions').delete().eq('id', subId);
+    } catch (err) {
+      console.warn('Supabase delete contact error:', err);
+    }
+  }
+
+  const contacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  const filtered = contacts.filter((c) => c.id !== subId);
+  writeJsonFile(CONTACTS_FILE, filtered);
+
+  res.json({ success: true });
+});
+
+// API ROUTE: Clear All Contact Submissions
+app.delete('/api/contacts', async (req, res) => {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('contact_submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (err) {
+      console.warn('Supabase clear contacts error:', err);
+    }
+  }
+
+  writeJsonFile(CONTACTS_FILE, []);
+  res.json({ success: true });
 });
 
 // API ROUTE: Fetch Assignments (Merges Supabase & Server File Store)
