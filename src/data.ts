@@ -1,6 +1,6 @@
 import { Instructor, ContactInfo, StudentProfile } from './types';
 
-export const LOGO_URL = 'https://i.ibb.co/fVxRpsJd/Vocal-Vantage-4.png';
+export const LOGO_URL = 'https://i.ibb.co/gKXRzPS/Vocal-Vantage-6.png';
 
 export const DEFAULT_CONTACT_INFO: ContactInfo = {
   email: 'info@vocalvantage.online',
