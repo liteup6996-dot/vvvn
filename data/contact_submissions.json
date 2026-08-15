@@ -1,0 +1,46 @@
+[
+  {
+    "id": "sub-1786643893895",
+    "fullName": "Multi Browser Test User",
+    "email": "multibrowser@test.com",
+    "phone": "+987654321",
+    "interestedIn": "American Accent",
+    "sessionFormat": "1-on-1",
+    "message": "Submission from secondary browser test",
+    "submittedAt": "2026-08-13T17:58:13.895Z",
+    "status": "New"
+  },
+  {
+    "id": "sub-1786643681515",
+    "fullName": "Website Form Test",
+    "email": "web@test.com",
+    "phone": "+12345678",
+    "interestedIn": "British Accent",
+    "sessionFormat": "Group Session",
+    "message": "Testing web contact submission",
+    "submittedAt": "2026-08-13T17:54:41.515Z",
+    "status": "New"
+  },
+  {
+    "id": "sub-sample-01",
+    "fullName": "Eleanor Vance",
+    "email": "eleanor.vance@example.com",
+    "phone": "+1 (555) 234-5678",
+    "interestedIn": "American Accent",
+    "sessionFormat": "One-on-One Session",
+    "message": "Looking to refine American pronunciation for executive presentations.",
+    "submittedAt": "2026-08-13T15:34:20.130Z",
+    "status": "New"
+  },
+  {
+    "id": "sub-sample-02",
+    "fullName": "Muhammad Ali",
+    "email": "m.ali@example.com",
+    "phone": "+92 300 1234567",
+    "interestedIn": "British Accent",
+    "sessionFormat": "Group Session",
+    "message": "Inquiring about upcoming RP British accent group masterclass batch schedule.",
+    "submittedAt": "2026-08-12T23:34:20.130Z",
+    "status": "Contacted"
+  }
+]

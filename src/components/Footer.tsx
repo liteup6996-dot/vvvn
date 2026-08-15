@@ -1,7 +1,7 @@
 import React from 'react';
 import { PageView, ContactInfo } from '../types';
 import { LOGO_URL } from '../data';
-import { Instagram, MapPin } from 'lucide-react';
+import { Instagram } from 'lucide-react';
 import { TrustBoxWidget } from './TrustBoxWidget';
 import { PolicyType } from './PrivacyTermsModal';
 
@@ -100,15 +100,10 @@ export const Footer: React.FC<FooterProps> = ({
           <TrustBoxWidget />
         </div>
 
-        {/* Bottom Legal bar & Office Address */}
-        <div className="pt-6 flex flex-col lg:flex-row items-center justify-between text-xs text-gray-400 gap-4">
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-left">
+        {/* Bottom Legal bar */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
+          <div>
             <p>© {new Date().getFullYear()} Vocal Vantage. All rights reserved.</p>
-            <span className="hidden sm:inline text-gray-300">•</span>
-            <p className="flex items-center gap-1.5 text-gray-500">
-              <MapPin className="w-3.5 h-3.5 text-[#7A1B28] shrink-0" />
-              <span>VV-Office, Gate 1, University Road, Sargodha, Punjab, Pakistan</span>
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">

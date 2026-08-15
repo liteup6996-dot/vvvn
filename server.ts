@@ -243,6 +243,15 @@ app.post('/api/auth/login', async (req, res) => {
 
 // API ROUTE: Fetch Contact Submissions
 app.get('/api/contacts', async (req, res) => {
+  const contactsMap = new Map<string, any>();
+
+  // 1. Read local contacts
+  const localContacts = readJsonFile<any[]>(CONTACTS_FILE, []);
+  localContacts.forEach((c) => {
+    if (c && c.id) contactsMap.set(c.id, c);
+  });
+
+  // 2. Fetch Supabase contacts
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
@@ -252,18 +261,20 @@ app.get('/api/contacts', async (req, res) => {
         .order('submitted_at', { ascending: false });
 
       if (!error && Array.isArray(data)) {
-        const contacts = data.map((row) => ({
-          id: row.id,
-          fullName: row.full_name,
-          email: row.email,
-          phone: row.phone,
-          interestedIn: row.interested_in,
-          sessionFormat: row.session_format,
-          message: row.message,
-          submittedAt: row.submitted_at,
-          status: row.status || 'New',
-        }));
-        return res.json({ success: true, contacts, source: 'supabase' });
+        data.forEach((row) => {
+          const c = {
+            id: row.id,
+            fullName: row.full_name,
+            email: row.email,
+            phone: row.phone,
+            interestedIn: row.interested_in,
+            sessionFormat: row.session_format,
+            message: row.message,
+            submittedAt: row.submitted_at,
+            status: row.status || 'New',
+          };
+          contactsMap.set(c.id, c);
+        });
       } else if (error) {
         console.warn('Supabase fetch contacts notice:', error.message || error);
       }
@@ -272,8 +283,11 @@ app.get('/api/contacts', async (req, res) => {
     }
   }
 
-  const localContacts = readJsonFile<any[]>(CONTACTS_FILE, []);
-  res.json({ success: true, contacts: localContacts, source: 'server-local' });
+  const combinedContacts = Array.from(contactsMap.values()).sort(
+    (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+  );
+
+  res.json({ success: true, contacts: combinedContacts, source: supabase ? 'supabase-merged' : 'server-local' });
 });
 
 // API ROUTE: Create Contact Submission
@@ -298,7 +312,7 @@ app.post('/api/contacts', async (req, res) => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await supabase.from('contact_submissions').insert([
+      const { error } = await supabase.from('contact_submissions').insert([
         {
           id: newSubmission.id,
           full_name: newSubmission.fullName,
@@ -311,6 +325,9 @@ app.post('/api/contacts', async (req, res) => {
           status: newSubmission.status,
         },
       ]);
+      if (error) {
+        console.warn('Supabase contact insert notice:', error.message || error);
+      }
     } catch (err) {
       console.warn('Supabase contact insert warning:', err);
     }

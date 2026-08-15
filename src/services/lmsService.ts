@@ -1,6 +1,19 @@
 import { getSupabase, isSupabaseConfigured, initSupabaseFromBackend } from '../lib/supabase';
-import { Assignment, StudentProfile, ContactSubmissionRecord } from '../types';
+import { Assignment, StudentProfile } from '../types';
 import { ABDUL_REHMAN_STUDENT } from '../data';
+import {
+  submitContactFormLogic,
+  fetchContactFormSubmissionsLogic,
+  subscribeToContactFormSubmissions,
+  ContactSubmissionRecord,
+} from './formLogic';
+
+export {
+  submitContactFormLogic as submitContactForm,
+  fetchContactFormSubmissionsLogic as fetchContactSubmissions,
+  subscribeToContactFormSubmissions,
+};
+export type { ContactSubmissionRecord };
 
 export interface UserAuthResult {
   success: boolean;
@@ -468,51 +481,6 @@ export async function clearAllAssignmentsInStore(storageKey: string): Promise<bo
   } catch {}
 
   return true;
-}
-
-/**
- * Submit contact inquiry to database
- */
-export async function submitContactForm(data: {
-  fullName: string;
-  email: string;
-  phone: string;
-  interestedIn: string;
-  sessionFormat?: string;
-  message: string;
-}): Promise<{ success: boolean; submission?: ContactSubmissionRecord }> {
-  try {
-    const res = await fetch('/api/contacts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const result = await res.json();
-      return result;
-    }
-  } catch (err) {
-    console.error('Submit contact form API error:', err);
-  }
-  return { success: false };
-}
-
-/**
- * Fetch all contact form submissions from database
- */
-export async function fetchContactSubmissions(): Promise<ContactSubmissionRecord[]> {
-  try {
-    const res = await fetch('/api/contacts');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && Array.isArray(data.contacts)) {
-        return data.contacts;
-      }
-    }
-  } catch (err) {
-    console.error('Fetch contact submissions API error:', err);
-  }
-  return [];
 }
 
 /**

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ContactInfo, AccentType } from '../types';
-import { Mail, Phone, Instagram, Send, CheckCircle2, Edit3, Save, X, MapPin } from 'lucide-react';
-import { submitContactForm } from '../services/lmsService';
+import { Mail, Phone, Instagram, Edit3, Save, X, ExternalLink, Clock, ShieldCheck, Sparkles, MessageSquare } from 'lucide-react';
 
 interface ContactSectionProps {
   contactInfo: ContactInfo;
@@ -14,49 +13,29 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
   onUpdateContactInfo,
   selectedCoursePref,
 }) => {
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    interestedIn: selectedCoursePref || ('American Accent' as AccentType),
-    sessionFormat: 'Both Options (Group & 1-on-1)',
-    message: '',
-  });
-
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [editableInfo, setEditableInfo] = useState<ContactInfo>(contactInfo);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
 
-  // Sync selected course preference if updated from prop
-  React.useEffect(() => {
-    if (selectedCoursePref) {
-      setFormData((prev) => ({ ...prev, interestedIn: selectedCoursePref }));
+  // Dynamically load Tally embed script for seamless responsive height adjustments
+  useEffect(() => {
+    const scriptSrc = 'https://tally.so/widgets/embed.js';
+    let script = document.querySelector(`script[src="${scriptSrc}"]`) as HTMLScriptElement | null;
+    
+    if (!script) {
+      script = document.createElement('script');
+      script.src = scriptSrc;
+      script.async = true;
+      script.onload = () => {
+        if ((window as any).Tally) {
+          (window as any).Tally.loadEmbeds();
+        }
+      };
+      document.body.appendChild(script);
+    } else if ((window as any).Tally) {
+      (window as any).Tally.loadEmbeds();
     }
-  }, [selectedCoursePref]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      await submitContactForm({
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        interestedIn: formData.interestedIn,
-        sessionFormat: formData.sessionFormat,
-        message: formData.message,
-      });
-      setSubmitted(true);
-    } catch (err) {
-      console.error('Contact submit error:', err);
-      // Still show submission state so user has feedback
-      setSubmitted(true);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  }, []);
 
   const saveContactEdit = () => {
     if (onUpdateContactInfo) {
@@ -65,23 +44,27 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     setIsEditingContact(false);
   };
 
+  const tallyEmbedUrl = 'https://tally.so/embed/7ROWlL?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1';
+  const tallyDirectUrl = 'https://tally.so/r/7ROWlL';
+
   return (
     <section id="contact" className="py-20 bg-white border-t border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           
-          {/* LEFT COLUMN: Contact Details */}
+          {/* LEFT COLUMN: Contact Details & Fast-Track Info */}
           <div className="lg:col-span-5 space-y-8">
             <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-[#7A1B28]">
-                Get In Touch
-              </p>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7A1B28]/10 text-[#7A1B28] text-xs font-semibold uppercase tracking-wider">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Get In Touch</span>
+              </div>
               <h2 className="text-3xl sm:text-4xl font-bold font-serif text-gray-900 tracking-tight">
                 Contact Vocal Vantage
               </h2>
-              <p className="text-gray-600 font-light text-base">
-                Have questions about our American or British accent programs? Speak with our admissions advisors today.
+              <p className="text-gray-600 font-light text-base leading-relaxed">
+                Have questions regarding our American or British Accent Mastery programs? Speak with our admissions advisors today.
               </p>
             </div>
 
@@ -90,12 +73,12 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               
               <div className="flex justify-between items-center border-b border-gray-200/60 pb-3">
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Direct Contact Details
+                  Direct Contact Channels
                 </span>
                 {onUpdateContactInfo && !isEditingContact && (
                   <button
                     onClick={() => setIsEditingContact(true)}
-                    className="text-xs font-medium text-gray-500 hover:text-[#7A1B28] inline-flex items-center gap-1"
+                    className="text-xs font-medium text-gray-500 hover:text-[#7A1B28] inline-flex items-center gap-1 cursor-pointer"
                     title="Edit Contact Info"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -145,7 +128,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                   <div className="flex items-center gap-2 pt-2">
                     <button
                       onClick={saveContactEdit}
-                      className="px-3.5 py-1.5 bg-[#7A1B28] text-white rounded-md font-semibold text-xs inline-flex items-center gap-1"
+                      className="px-3.5 py-1.5 bg-[#7A1B28] text-white rounded-md font-semibold text-xs inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Save className="w-3.5 h-3.5" /> Save Changes
                     </button>
@@ -154,7 +137,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                         setEditableInfo(contactInfo);
                         setIsEditingContact(false);
                       }}
-                      className="px-3.5 py-1.5 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs inline-flex items-center gap-1"
+                      className="px-3.5 py-1.5 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs inline-flex items-center gap-1 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" /> Cancel
                     </button>
@@ -224,170 +207,105 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       </a>
                     </div>
                   </div>
-
-                  {/* Office Address */}
-                  <div className="flex items-start gap-4">
-                    <div className="p-2.5 rounded-md bg-white text-[#7A1B28] border border-gray-200/80 shrink-0">
-                      <MapPin className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Office Address</p>
-                      <p className="text-sm font-semibold text-gray-900 leading-snug">
-                        VV-Office, Gate 1, University Road, Sargodha, Punjab, Pakistan
-                      </p>
-                    </div>
-                  </div>
                 </div>
               )}
 
             </div>
+
+            {/* Fast Track Inquiries Assurance Card */}
+            <div className="p-6 rounded-xl bg-[#7A1B28]/5 border border-[#7A1B28]/15 space-y-4">
+              <div className="flex items-center gap-2 text-[#7A1B28]">
+                <Sparkles className="w-4 h-4" />
+                <h3 className="text-xs font-bold uppercase tracking-wider">What Happens After You Inquire</h3>
+              </div>
+              <ul className="space-y-2.5 text-xs text-gray-700">
+                <li className="flex items-start gap-2">
+                  <Clock className="w-3.5 h-3.5 text-[#7A1B28] shrink-0 mt-0.5" />
+                  <span><strong>Fast 24-Hour Review:</strong> Our admissions team reviews your goals within one business day.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#7A1B28] shrink-0 mt-0.5" />
+                  <span><strong>Personalized Assessment:</strong> We recommend either the 1-on-1 VIP track or small-group cohort based on your speaking profile.</span>
+                </li>
+              </ul>
+            </div>
+
           </div>
 
-          {/* RIGHT COLUMN: Simple Contact Form */}
-          <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 p-8 sm:p-10 shadow-xs">
-            {submitted ? (
-              <div className="py-12 text-center space-y-4" id="contact-success-msg">
-                <div className="inline-flex p-4 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
-                  <CheckCircle2 className="w-8 h-8" />
+          {/* RIGHT COLUMN: Official Tally Inquiry Form Embed */}
+          <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6">
+            
+            {/* Header with Direct External Link Action */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                    Official Admissions Form
+                  </span>
                 </div>
-                <h3 className="text-2xl font-bold font-serif text-gray-900">
-                  Query Submitted
+                <h3 className="text-xl sm:text-2xl font-bold font-serif text-gray-900">
+                  Send an Inquiry / Application
                 </h3>
-                <p className="text-gray-600 font-medium text-base max-w-md mx-auto leading-relaxed">
-                  Thank you for contacting Vocal Vantage. Our team will be with you shortly.
+                <p className="text-xs text-gray-500 mt-1">
+                  Complete the questionnaire below or open the full form directly.
                 </p>
-                <button
-                  onClick={() => setSubmitted(false)}
-                  className="mt-4 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md transition-colors"
-                >
-                  Send Another Message
-                </button>
               </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6" id="vocal-vantage-contact-form">
-                <div>
-                  <h3 className="text-xl font-bold font-serif text-gray-900 mb-1">
-                    Send an Inquiry
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Fill in your details below and an instructor will reply within 24 hours.
-                  </p>
+
+              <a
+                href={tallyDirectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#7A1B28] text-white text-xs font-semibold uppercase tracking-wider rounded-md hover:bg-[#621520] transition-colors shadow-xs shrink-0 cursor-pointer"
+                id="tally-direct-link-btn"
+              >
+                <span>Open in New Tab</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            {/* Embedded Tally Container */}
+            <div className="relative min-h-[580px] sm:min-h-[640px] w-full rounded-lg overflow-hidden bg-gray-50/50 border border-gray-100">
+              
+              {!iframeLoaded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-400 gap-3">
+                  <div className="w-8 h-8 border-2 border-[#7A1B28] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs font-medium text-gray-500">Loading Vocal Vantage Inquiry Form...</p>
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Full Name */}
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Eleanor Vance"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
-                      id="input-full-name"
-                    />
-                  </div>
+              <iframe
+                data-tally-src={tallyEmbedUrl}
+                src={tallyEmbedUrl}
+                loading="lazy"
+                width="100%"
+                height="620"
+                frameBorder="0"
+                marginHeight={0}
+                marginWidth={0}
+                title="Vocal Vantage Inquiry Form"
+                className="w-full min-h-[580px] sm:min-h-[640px] border-0"
+                id="tally-inquiry-iframe"
+                onLoad={() => setIframeLoaded(true)}
+              />
+            </div>
 
-                  {/* Email */}
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="name@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
-                      id="input-email"
-                    />
-                  </div>
-                </div>
+            {/* Fallback Direct Link Bar */}
+            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-gray-500 gap-2 border-t border-gray-100">
+              <span className="text-[11px] text-gray-400">
+                Powered by Vocal Vantage Admissions Portal
+              </span>
+              <a
+                href={tallyDirectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#7A1B28] hover:underline inline-flex items-center gap-1 font-medium text-[11px]"
+              >
+                <span>Having trouble viewing the form? Click here to open Tally directly</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Phone / WhatsApp */}
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2">
-                      Phone / WhatsApp *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="+1 (555) 000-0000"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
-                      id="input-phone"
-                    />
-                  </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Interested In Accent */}
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2">
-                      Interested Accent *
-                    </label>
-                    <select
-                      value={formData.interestedIn}
-                      onChange={(e) => setFormData({ ...formData, interestedIn: e.target.value as AccentType })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28] bg-white"
-                      id="select-interested-in"
-                    >
-                      <option value="American Accent">American Accent</option>
-                      <option value="British Accent">British Accent</option>
-                    </select>
-                  </div>
-
-                  {/* Preferred Session Format */}
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2">
-                      Preferred Session Format *
-                    </label>
-                    <select
-                      value={formData.sessionFormat}
-                      onChange={(e) => setFormData({ ...formData, sessionFormat: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28] bg-white"
-                      id="select-session-format"
-                    >
-                      <option value="Group Session">Group Session</option>
-                      <option value="One-on-One Session">One-on-One Session (1-on-1)</option>
-                      <option value="Both Options (Group & 1-on-1)">Both Options (Group & 1-on-1)</option>
-                    </select>
-                  </div>
-                </div>
-                </div>
-
-                {/* Message */}
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2">
-                    Message
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder="Tell us about your current communication goals or speaking requirements..."
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
-                    id="input-message"
-                  />
-                </div>
-
-                {/* Submit Query Button */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-4 px-6 bg-[#7A1B28] text-white font-semibold text-base uppercase tracking-wider rounded-md hover:bg-[#621520] transition-colors shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  id="btn-submit-query"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{isSubmitting ? 'Submitting to Database...' : 'Submit Query'}</span>
-                </button>
-              </form>
-            )}
           </div>
 
         </div>
