@@ -110,6 +110,23 @@ export const ABDUL_REHMAN_STUDENT: StudentProfile = {
   previousAssignments: [],
 };
 
+export const HAFSA_GHUMMAN_STUDENT: StudentProfile = {
+  id: 'std-690h',
+  studentId: '690H',
+  email: 'hafsa.ghumman@vocalvantage.online',
+  name: 'Hafsa Ghumman',
+  instructorName: 'Mr. Hash',
+  courseProgram: 'American Accent Program',
+  accentType: 'American Accent',
+  activeAssignments: [],
+  previousAssignments: [],
+};
+
+export const ENROLLED_STUDENTS: StudentProfile[] = [
+  HAFSA_GHUMMAN_STUDENT,
+  ABDUL_REHMAN_STUDENT,
+];
+
 export const DEMO_STUDENT_AMERICAN = ABDUL_REHMAN_STUDENT;
 
 export const DEMO_STUDENT_BRITISH: StudentProfile = {

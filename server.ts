@@ -169,15 +169,27 @@ app.post('/api/auth/login', async (req, res) => {
 
       if (data && !error && data.password === cleanPass) {
         if (role === 'student') {
+          const studentName =
+            data.name ||
+            (data.user_id_code?.toUpperCase() === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN');
+          const instructorName =
+            data.instructor_name ||
+            (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Mr. Abdulleh Hashmi');
+          const email =
+            data.email ||
+            (data.user_id_code?.toUpperCase() === '690H'
+              ? 'hafsa.ghumman@vocalvantage.online'
+              : 'abdulrehman@vocalvantage.edu');
+
           return res.json({
             success: true,
             role: 'student',
             studentProfile: {
-              id: data.id || 'student-1',
+              id: data.id || `std-${data.user_id_code.toLowerCase()}`,
               studentId: data.user_id_code,
-              email: data.email || 'abdulrehman@vocalvantage.edu',
-              name: data.name || 'Abdul REHMAN',
-              instructorName: data.instructor_name || 'Mr. Abdulleh Hashmi',
+              email: email,
+              name: studentName,
+              instructorName: instructorName,
               courseProgram: data.course_program || 'American Accent Program',
               accentType: data.accent_type || 'American Accent',
               activeAssignments: [],
@@ -205,7 +217,24 @@ app.post('/api/auth/login', async (req, res) => {
 
   // Fallback to default local credentials
   if (role === 'student') {
-    if (cleanId.toUpperCase() === '625H' && cleanPass === '162111') {
+    if (cleanId.toUpperCase() === '690H' && cleanPass === '162123') {
+      return res.json({
+        success: true,
+        role: 'student',
+        studentProfile: {
+          id: 'std-690h',
+          studentId: '690H',
+          email: 'hafsa.ghumman@vocalvantage.online',
+          name: 'Hafsa Ghumman',
+          instructorName: 'Mr. Hash',
+          courseProgram: 'American Accent Program',
+          accentType: 'American Accent',
+          activeAssignments: [],
+          previousAssignments: [],
+        },
+        source: 'server-local',
+      });
+    } else if (cleanId.toUpperCase() === '625H' && cleanPass === '162111') {
       return res.json({
         success: true,
         role: 'student',
@@ -239,6 +268,63 @@ app.post('/api/auth/login', async (req, res) => {
     }
     return res.status(401).json({ success: false, errorMessage: 'Invalid Instructor ID or password.' });
   }
+});
+
+// API ROUTE: Fetch Enrolled Students List
+app.get('/api/students', async (req, res) => {
+  const defaultStudents = [
+    {
+      id: 'std-690h',
+      studentId: '690H',
+      email: 'hafsa.ghumman@vocalvantage.online',
+      name: 'Hafsa Ghumman',
+      instructorName: 'Mr. Hash',
+      courseProgram: 'American Accent Program',
+      accentType: 'American Accent',
+      activeAssignments: [],
+      previousAssignments: [],
+    },
+    {
+      id: 'std-625h',
+      studentId: '625H',
+      email: 'abdul.rehman@vocalvantage.online',
+      name: 'Abdul REHMAN',
+      instructorName: 'Mr. Abdulleh Hashmi',
+      courseProgram: 'American Accent Program',
+      accentType: 'American Accent',
+      activeAssignments: [],
+      previousAssignments: [],
+    },
+  ];
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'student');
+
+      if (!error && data && data.length > 0) {
+        const mapped = data.map((p) => ({
+          id: p.id || `std-${p.user_id_code?.toLowerCase()}`,
+          studentId: p.user_id_code,
+          email: p.email || (p.user_id_code === '690H' ? 'hafsa.ghumman@vocalvantage.online' : 'abdulrehman@vocalvantage.edu'),
+          name: p.name || (p.user_id_code === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN'),
+          instructorName: p.instructor_name || (p.user_id_code === '690H' ? 'Mr. Hash' : 'Mr. Abdulleh Hashmi'),
+          courseProgram: p.course_program || 'American Accent Program',
+          accentType: p.accent_type || 'American Accent',
+          activeAssignments: [],
+          previousAssignments: [],
+        }));
+        return res.json({ success: true, students: mapped });
+      }
+    } catch (err) {
+      console.warn('Supabase fetch students warning:', err);
+    }
+  }
+
+  res.json({ success: true, students: defaultStudents });
 });
 
 // API ROUTE: Fetch Contact Submissions
@@ -421,12 +507,28 @@ app.get('/api/assignments', async (req, res) => {
               type: sub.file_type,
               date: sub.submission_date,
               dataUrl: sub.data_url,
+              studentIdCode: sub.student_id_code,
+              studentName:
+                sub.student_id_code === '690H'
+                  ? 'Hafsa Ghumman'
+                  : sub.student_id_code === '625H'
+                  ? 'Abdul REHMAN'
+                  : sub.student_id_code,
             };
           });
         }
 
         supabaseAssignments = asgData.map((row) => ({
           id: row.id,
+          studentIdCode: row.student_id_code || 'ALL',
+          targetStudentName:
+            row.student_id_code === '690H'
+              ? 'Hafsa Ghumman'
+              : row.student_id_code === '625H'
+              ? 'Abdul REHMAN'
+              : row.student_id_code === 'ALL'
+              ? 'All Students'
+              : row.student_id_code,
           title: row.title,
           instructions: row.instructions,
           assignedDate: row.assigned_date,
@@ -464,10 +566,24 @@ app.get('/api/assignments', async (req, res) => {
 
 // API ROUTE: Create Assignment
 app.post('/api/assignments', async (req, res) => {
-  const { assignment, studentIdCode = '625H' } = req.body;
+  const { assignment, studentIdCode = '690H' } = req.body;
   if (!assignment || !assignment.id) {
     return res.status(400).json({ success: false, message: 'Assignment payload required' });
   }
+
+  const targetCode = studentIdCode || assignment.studentIdCode || 'ALL';
+  const targetName =
+    targetCode === '690H'
+      ? 'Hafsa Ghumman'
+      : targetCode === '625H'
+      ? 'Abdul REHMAN'
+      : 'All Students';
+
+  const assignmentWithTarget = {
+    ...assignment,
+    studentIdCode: targetCode,
+    targetStudentName: targetName,
+  };
 
   let savedToSupabase = false;
   const supabase = getSupabaseClient();
@@ -475,7 +591,7 @@ app.post('/api/assignments', async (req, res) => {
     try {
       const payload = {
         id: assignment.id,
-        student_id_code: studentIdCode || '625H',
+        student_id_code: targetCode,
         title: assignment.title,
         instructions: assignment.instructions,
         assigned_date: assignment.assignedDate,
@@ -498,15 +614,15 @@ app.post('/api/assignments', async (req, res) => {
   // Always save to server JSON file
   const localAssignments = readJsonFile<any[]>(ASSIGNMENTS_FILE, []);
   const filtered = localAssignments.filter((a) => a.id !== assignment.id);
-  filtered.unshift(assignment);
+  filtered.unshift(assignmentWithTarget);
   writeJsonFile(ASSIGNMENTS_FILE, filtered);
 
-  res.json({ success: true, savedToSupabase, assignment });
+  res.json({ success: true, savedToSupabase, assignment: assignmentWithTarget });
 });
 
 // API ROUTE: Submit Assignment File
 app.post('/api/assignments/submit', async (req, res) => {
-  const { assignmentId, studentIdCode = '625H', submittedFile } = req.body;
+  const { assignmentId, studentIdCode = '690H', submittedFile } = req.body;
   if (!assignmentId || !submittedFile) {
     return res.status(400).json({ success: false, message: 'Missing submission parameters' });
   }
@@ -518,7 +634,7 @@ app.post('/api/assignments/submit', async (req, res) => {
       const { error: subErr } = await supabase.from('submissions').insert([
         {
           assignment_id: assignmentId,
-          student_id_code: studentIdCode || '625H',
+          student_id_code: studentIdCode || '690H',
           file_name: submittedFile.name,
           file_size: submittedFile.size,
           file_type: submittedFile.type,
@@ -547,7 +663,20 @@ app.post('/api/assignments/submit', async (req, res) => {
   const localAssignments = readJsonFile<any[]>(ASSIGNMENTS_FILE, []);
   const updated = localAssignments.map((a) => {
     if (a.id === assignmentId) {
-      return { ...a, status: 'Submitted', submittedFile };
+      return {
+        ...a,
+        status: 'Submitted',
+        submittedFile: {
+          ...submittedFile,
+          studentIdCode,
+          studentName:
+            studentIdCode === '690H'
+              ? 'Hafsa Ghumman'
+              : studentIdCode === '625H'
+              ? 'Abdul REHMAN'
+              : studentIdCode,
+        },
+      };
     }
     return a;
   });

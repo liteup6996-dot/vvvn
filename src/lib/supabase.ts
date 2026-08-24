@@ -183,7 +183,13 @@ END $$;
 -- 5. Seed Default User Credentials
 INSERT INTO public.profiles (user_id_code, password, name, role, email, instructor_name, course_program, accent_type)
 VALUES 
+  ('690H', '162123', 'Hafsa Ghumman', 'student', 'hafsa.ghumman@vocalvantage.online', 'Mr. Hash', 'American Accent Program', 'American Accent'),
   ('625H', '162111', 'Abdul REHMAN', 'student', 'abdulrehman@vocalvantage.edu', 'Mr. Abdulleh Hashmi', 'American Accent Program', 'American Accent'),
   ('123123', '1122', 'Mr. Abdulleh Hashmi', 'instructor', 'abdulleh.hashmi@vocalvantage.edu', 'Self', 'American Accent Program', 'American Accent')
-ON CONFLICT (user_id_code) DO NOTHING;
+ON CONFLICT (user_id_code) DO UPDATE SET
+  password = EXCLUDED.password,
+  name = EXCLUDED.name,
+  instructor_name = EXCLUDED.instructor_name,
+  course_program = EXCLUDED.course_program,
+  accent_type = EXCLUDED.accent_type;
 `;

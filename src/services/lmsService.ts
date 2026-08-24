@@ -1,6 +1,6 @@
 import { getSupabase, isSupabaseConfigured, initSupabaseFromBackend } from '../lib/supabase';
 import { Assignment, StudentProfile } from '../types';
-import { ABDUL_REHMAN_STUDENT } from '../data';
+import { ABDUL_REHMAN_STUDENT, HAFSA_GHUMMAN_STUDENT, ENROLLED_STUDENTS } from '../data';
 import {
   submitContactFormLogic,
   fetchContactFormSubmissionsLogic,
@@ -104,15 +104,27 @@ export async function authenticateUser(
         if (data && !error) {
           if (data.password === cleanPass) {
             if (role === 'student') {
+              const studentName =
+                data.name ||
+                (data.user_id_code?.toUpperCase() === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN');
+              const instructorName =
+                data.instructor_name ||
+                (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Mr. Abdulleh Hashmi');
+              const email =
+                data.email ||
+                (data.user_id_code?.toUpperCase() === '690H'
+                  ? 'hafsa.ghumman@vocalvantage.online'
+                  : 'abdulrehman@vocalvantage.edu');
+
               return {
                 success: true,
                 role: 'student',
                 studentProfile: {
-                  id: data.id || 'student-1',
+                  id: data.id || `std-${data.user_id_code.toLowerCase()}`,
                   studentId: data.user_id_code,
-                  email: data.email || 'abdulrehman@vocalvantage.edu',
-                  name: data.name || 'Abdul REHMAN',
-                  instructorName: data.instructor_name || 'Mr. Abdulleh Hashmi',
+                  email: email,
+                  name: studentName,
+                  instructorName: instructorName,
                   courseProgram: (data.course_program as any) || 'American Accent Program',
                   accentType: (data.accent_type as any) || 'American Accent',
                   activeAssignments: [],
@@ -148,7 +160,14 @@ export async function authenticateUser(
 
   // 3. Fallback to local credential validation
   if (role === 'student') {
-    if (cleanId.toUpperCase() === '625H' && cleanPass === '162111') {
+    if (cleanId.toUpperCase() === '690H' && cleanPass === '162123') {
+      return {
+        success: true,
+        role: 'student',
+        studentProfile: HAFSA_GHUMMAN_STUDENT,
+        source: 'local',
+      };
+    } else if (cleanId.toUpperCase() === '625H' && cleanPass === '162111') {
       return {
         success: true,
         role: 'student',
@@ -206,6 +225,25 @@ export async function checkDatabaseStatus(): Promise<{ serverConnected: boolean;
 }
 
 /**
+ * Fetch list of enrolled students from Server or Supabase, falling back to ENROLLED_STUDENTS
+ */
+export async function fetchEnrolledStudentsList(): Promise<StudentProfile[]> {
+  try {
+    const res = await fetch('/api/students');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.students) && data.students.length > 0) {
+        return data.students;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch /api/students:', err);
+  }
+
+  return ENROLLED_STUDENTS;
+}
+
+/**
  * Fetch assignments strictly from Supabase Cloud DB when available
  */
 export async function fetchAssignmentsFromStore(storageKey: string): Promise<Assignment[]> {
@@ -233,12 +271,28 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
                 type: sub.file_type,
                 date: sub.submission_date,
                 dataUrl: sub.data_url,
+                studentIdCode: sub.student_id_code,
+                studentName:
+                  sub.student_id_code === '690H'
+                    ? 'Hafsa Ghumman'
+                    : sub.student_id_code === '625H'
+                    ? 'Abdul REHMAN'
+                    : sub.student_id_code,
               };
             });
           }
 
           const cloudList: Assignment[] = asgData.map((row) => ({
             id: row.id,
+            studentIdCode: row.student_id_code || 'ALL',
+            targetStudentName:
+              row.student_id_code === '690H'
+                ? 'Hafsa Ghumman'
+                : row.student_id_code === '625H'
+                ? 'Abdul REHMAN'
+                : row.student_id_code === 'ALL'
+                ? 'All Students'
+                : row.student_id_code,
             title: row.title,
             instructions: row.instructions,
             assignedDate: row.assigned_date,
@@ -296,14 +350,27 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
  */
 export async function createAssignmentInStore(
   asg: Assignment,
-  studentIdCode: string = '625H'
+  studentIdCode: string = '690H'
 ): Promise<boolean> {
   await initSupabaseFromBackend();
   let savedSupabase = false;
 
+  const targetName =
+    studentIdCode === '690H'
+      ? 'Hafsa Ghumman'
+      : studentIdCode === '625H'
+      ? 'Abdul REHMAN'
+      : 'All Students';
+
+  const assignmentWithTarget: Assignment = {
+    ...asg,
+    studentIdCode,
+    targetStudentName: targetName,
+  };
+
   const payload = {
     id: asg.id,
-    student_id_code: studentIdCode || '625H',
+    student_id_code: studentIdCode || 'ALL',
     title: asg.title,
     instructions: asg.instructions,
     assigned_date: asg.assignedDate,
@@ -335,7 +402,7 @@ export async function createAssignmentInStore(
     const res = await fetch('/api/assignments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignment: asg, studentIdCode }),
+      body: JSON.stringify({ assignment: assignmentWithTarget, studentIdCode }),
     });
 
     if (res.ok) {
@@ -363,6 +430,8 @@ export async function submitAssignmentInStore(
     type: string;
     date: string;
     dataUrl?: string;
+    studentIdCode?: string;
+    studentName?: string;
   }
 ): Promise<boolean> {
   await initSupabaseFromBackend();
@@ -376,7 +445,7 @@ export async function submitAssignmentInStore(
         const { error: subError } = await supabase.from('submissions').insert([
           {
             assignment_id: asgId,
-            student_id_code: studentIdCode || '625H',
+            student_id_code: studentIdCode || '690H',
             file_name: submittedFile.name,
             file_size: submittedFile.size,
             file_type: submittedFile.type,

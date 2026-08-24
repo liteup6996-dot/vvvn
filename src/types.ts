@@ -45,6 +45,8 @@ export interface ContactSubmissionRecord {
 
 export interface Assignment {
   id: string;
+  studentIdCode?: string; // '690H' | '625H' | 'ALL' | etc.
+  targetStudentName?: string; // e.g. 'Hafsa Ghumman' | 'Abdul REHMAN' | 'All Students'
   title: string;
   assignedDate: string;
   dueDate: string;
@@ -58,6 +60,8 @@ export interface Assignment {
     type: string;
     date: string;
     dataUrl?: string;
+    studentIdCode?: string;
+    studentName?: string;
   };
 }
 
