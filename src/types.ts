@@ -1,8 +1,30 @@
-export type PageView = 'home' | 'team' | 'lms';
+export type PageView = 'home' | 'team' | 'lms' | 'review';
 
 export type AccentType = 'American Accent' | 'British Accent';
 
 export type SessionType = 'One-on-One Session' | 'Group Session' | 'Both Options (1-on-1 & Group)';
+
+export interface OrderRecord {
+  id: string;
+  orderNumber: string; // e.g. "VV-2026-8492"
+  referenceId: string; // e.g. "VV-ORD-8492-REV"
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  country?: string;
+  nativeLanguage?: string;
+  productName: string;
+  sku: string;
+  originalPrice: number; // 49.00
+  discountAmount: number; // 49.00
+  finalAmount: number; // 0.00
+  currency: string; // "USD"
+  promoCode: string; // "TRUSTPILOT100"
+  status: 'Completed' | 'Verified';
+  createdAt: string;
+  trustpilotAfsTriggered: boolean;
+  trustpilotReviewUrl: string;
+}
 
 export interface Instructor {
   id: string;

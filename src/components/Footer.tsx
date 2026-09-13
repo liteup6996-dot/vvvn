@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PageView, ContactInfo } from '../types';
 import { LOGO_URL } from '../data';
-import { Instagram } from 'lucide-react';
+import { Instagram, Star, Lock } from 'lucide-react';
 import { TrustBoxWidget } from './TrustBoxWidget';
 import { PolicyType } from './PrivacyTermsModal';
+import { ReviewPasscodeModal } from './ReviewPasscodeModal';
 
 interface FooterProps {
   onNavigate: (view: PageView, sectionId?: string) => void;
@@ -16,6 +17,8 @@ export const Footer: React.FC<FooterProps> = ({
   contactInfo,
   onOpenPrivacyTerms,
 }) => {
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+
   return (
     <footer className="bg-white border-t border-gray-200 py-12 text-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,8 +103,8 @@ export const Footer: React.FC<FooterProps> = ({
           <TrustBoxWidget />
         </div>
 
-        {/* Bottom Legal bar */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
+        {/* Bottom Legal bar & Review Trustpilot Button */}
+        <div className="pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-400 gap-4">
           <div>
             <p>© {new Date().getFullYear()} Vocal Vantage. All rights reserved.</p>
           </div>
@@ -136,9 +139,33 @@ export const Footer: React.FC<FooterProps> = ({
               Service Delivery Policy
             </button>
           </div>
+
+          {/* Button at the end: Review Trust pilot (Passcode Protected with 7869) */}
+          <div className="pt-2 md:pt-0">
+            <button
+              onClick={() => setShowPasscodeModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-600 hover:text-emerald-800 transition-all text-xs font-semibold shadow-2xs cursor-pointer group"
+              id="footer-review-trustpilot-btn"
+            >
+              <div className="w-4 h-4 rounded-full bg-[#00b67a] flex items-center justify-center text-white shrink-0">
+                <Star className="w-2.5 h-2.5 fill-white" />
+              </div>
+              <span>Review Trust pilot</span>
+              <Lock className="w-3 h-3 text-gray-400 group-hover:text-emerald-600" />
+            </button>
+          </div>
         </div>
 
       </div>
+
+      {/* Review Passcode Modal (Password: 7869) */}
+      <ReviewPasscodeModal
+        isOpen={showPasscodeModal}
+        onClose={() => setShowPasscodeModal(false)}
+        onSuccess={() => {
+          onNavigate('review');
+        }}
+      />
     </footer>
   );
 };

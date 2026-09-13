@@ -14,10 +14,15 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const DATA_DIR = path.join(process.cwd(), 'data');
 const ASSIGNMENTS_FILE = path.join(DATA_DIR, 'assignments.json');
 const CONTACTS_FILE = path.join(DATA_DIR, 'contact_submissions.json');
+const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const SUPABASE_CONFIG_FILE = path.join(DATA_DIR, 'supabase_config.json');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+if (!fs.existsSync(ORDERS_FILE)) {
+  fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), 'utf-8');
 }
 
 if (!fs.existsSync(ASSIGNMENTS_FILE)) {
@@ -480,6 +485,121 @@ app.delete('/api/contacts', async (req, res) => {
 
   writeJsonFile(CONTACTS_FILE, []);
   res.json({ success: true });
+});
+
+// =========================================================================
+// API ROUTES: ORDERS & OFFICIAL TRUSTPILOT REVIEW VERIFICATION (0 USD FLOW)
+// =========================================================================
+
+// POST /api/orders - Process $0.00 USD Free Order for Verified Trustpilot Evaluation
+app.post('/api/orders', async (req, res) => {
+  const {
+    customerName,
+    customerEmail,
+    customerPhone,
+    country,
+    nativeLanguage,
+    promoCode = 'TRUSTPILOT100',
+    productName = 'General American Accent Diagnostic & Vocal Mastery Starter Kit',
+    sku = 'VV-0USD-ACCENT-KIT',
+  } = req.body;
+
+  if (!customerName || !customerEmail) {
+    return res.status(400).json({
+      success: false,
+      message: 'Full name and email address are required for order registration and Trustpilot verification.',
+    });
+  }
+
+  // Generate official reference ID and order number
+  const randNum = Math.floor(1000 + Math.random() * 9000);
+  const randRef = Math.floor(100000 + Math.random() * 900000);
+  const orderNumber = `VV-2026-${randNum}`;
+  const referenceId = `VV-ORD-${randRef}-REV`;
+  const cleanName = String(customerName).trim();
+  const cleanEmail = String(customerEmail).trim().toLowerCase();
+
+  const trustpilotReviewUrl = `https://www.trustpilot.com/evaluate/vocalvantage.online?email=${encodeURIComponent(cleanEmail)}&name=${encodeURIComponent(cleanName)}&referenceId=${encodeURIComponent(referenceId)}`;
+
+  const newOrder = {
+    id: `ord-${Date.now()}`,
+    orderNumber,
+    referenceId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    customerPhone: customerPhone ? String(customerPhone).trim() : '',
+    country: country ? String(country).trim() : 'International',
+    nativeLanguage: nativeLanguage ? String(nativeLanguage).trim() : 'English / Non-Native ESL',
+    productName: String(productName).trim(),
+    sku: String(sku).trim(),
+    originalPrice: 49.00,
+    discountAmount: 49.00,
+    finalAmount: 0.00,
+    currency: 'USD',
+    promoCode: String(promoCode).trim(),
+    status: 'Completed',
+    createdAt: new Date().toISOString(),
+    trustpilotAfsTriggered: true,
+    trustpilotReviewUrl,
+    trustpilotInvitationSent: true,
+  };
+
+  // Optional: record in Supabase if an orders table exists
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('orders').insert([
+        {
+          id: newOrder.id,
+          order_number: newOrder.orderNumber,
+          reference_id: newOrder.referenceId,
+          customer_name: newOrder.customerName,
+          customer_email: newOrder.customerEmail,
+          product_name: newOrder.productName,
+          final_amount: 0.00,
+          created_at: newOrder.createdAt,
+        },
+      ]);
+    } catch {
+      // Supabase table may not exist, local JSON fallback is primary
+    }
+  }
+
+  const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+  orders.unshift(newOrder);
+  writeJsonFile(ORDERS_FILE, orders);
+
+  return res.json({
+    success: true,
+    order: newOrder,
+    message: 'Order confirmed and verified for official Trustpilot review.',
+  });
+});
+
+// GET /api/orders - Fetch all orders
+app.get('/api/orders', (req, res) => {
+  const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+  res.json({ success: true, count: orders.length, orders });
+});
+
+// GET /api/orders/:identifier - Verify order by orderNumber, referenceId or id
+app.get('/api/orders/:identifier', (req, res) => {
+  const { identifier } = req.params;
+  const cleanId = String(identifier).trim().toUpperCase();
+  const orders = readJsonFile<any[]>(ORDERS_FILE, []);
+
+  const found = orders.find(
+    (o) =>
+      o.id.toUpperCase() === cleanId ||
+      o.orderNumber.toUpperCase() === cleanId ||
+      o.referenceId.toUpperCase() === cleanId
+  );
+
+  if (!found) {
+    return res.status(404).json({ success: false, message: 'Order reference not found' });
+  }
+
+  res.json({ success: true, verified: true, order: found });
 });
 
 // API ROUTE: Fetch Assignments (Merges Supabase & Server File Store)
