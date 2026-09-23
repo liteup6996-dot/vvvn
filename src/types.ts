@@ -29,7 +29,7 @@ export interface OrderRecord {
 export interface Instructor {
   id: string;
   name: string;
-  role: 'American Accent Instructor' | 'British Accent Instructor';
+  role: 'American Accent Instructor' | 'British Accent Instructor' | 'Core Language & Speech Instructor' | string;
   gender?: 'male' | 'female';
   photoUrl: string;
   bio: string;
@@ -93,8 +93,8 @@ export interface StudentProfile {
   email: string;
   name: string;
   instructorName: string;
-  courseProgram: 'American Accent Program' | 'British Accent Program';
-  accentType: AccentType;
+  courseProgram: 'American Accent Program' | 'British Accent Program' | 'Core Language Program' | string;
+  accentType: AccentType | 'Core Language' | string;
   activeAssignments: Assignment[];
   previousAssignments: Assignment[];
 }

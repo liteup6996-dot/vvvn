@@ -178,13 +178,24 @@ app.post('/api/auth/login', async (req, res) => {
             data.name ||
             (data.user_id_code?.toUpperCase() === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN');
           const instructorName =
-            data.instructor_name ||
-            (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Mr. Abdulleh Hashmi');
+            data.user_id_code?.toUpperCase() === '625H'
+              ? 'Miss Maha'
+              : data.instructor_name ||
+                (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Miss Maha');
           const email =
             data.email ||
             (data.user_id_code?.toUpperCase() === '690H'
               ? 'hafsa.ghumman@vocalvantage.online'
-              : 'abdulrehman@vocalvantage.edu');
+              : 'abdul.rehman@vocalvantage.online');
+
+          const courseProgram =
+            data.user_id_code?.toUpperCase() === '625H'
+              ? 'Core Language Program'
+              : data.course_program || 'American Accent Program';
+          const accentType =
+            data.user_id_code?.toUpperCase() === '625H'
+              ? 'Core Language'
+              : data.accent_type || 'American Accent';
 
           return res.json({
             success: true,
@@ -195,8 +206,8 @@ app.post('/api/auth/login', async (req, res) => {
               email: email,
               name: studentName,
               instructorName: instructorName,
-              courseProgram: data.course_program || 'American Accent Program',
-              accentType: data.accent_type || 'American Accent',
+              courseProgram: courseProgram,
+              accentType: accentType,
               activeAssignments: [],
               previousAssignments: [],
             },
@@ -208,8 +219,8 @@ app.post('/api/auth/login', async (req, res) => {
             role: 'instructor',
             instructorInfo: {
               id: data.user_id_code,
-              name: data.name || 'Mr. Abdulleh Hashmi',
-              email: data.email || 'abdulleh.hashmi@vocalvantage.edu',
+              name: data.name || 'Miss Maha',
+              email: data.email || 'miss.maha@vocalvantage.online',
             },
             source: 'supabase',
           });
@@ -248,9 +259,9 @@ app.post('/api/auth/login', async (req, res) => {
           studentId: '625H',
           email: 'abdul.rehman@vocalvantage.online',
           name: 'Abdul REHMAN',
-          instructorName: 'Mr. Abdulleh Hashmi',
-          courseProgram: 'American Accent Program',
-          accentType: 'American Accent',
+          instructorName: 'Miss Maha',
+          courseProgram: 'Core Language Program',
+          accentType: 'Core Language',
           activeAssignments: [],
           previousAssignments: [],
         },
@@ -259,14 +270,21 @@ app.post('/api/auth/login', async (req, res) => {
     }
     return res.status(401).json({ success: false, errorMessage: 'Invalid Student ID or password.' });
   } else {
-    if (cleanId === '123123' && cleanPass === '1122') {
+    // Instructor login for Miss Maha (supports ID: MAHA, 123123, or MISS MAHA with pass: 1122 or 162123)
+    const isMaha =
+      (cleanId.toUpperCase() === 'MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
+      (cleanId === '123123' && (cleanPass === '1122' || cleanPass === '162123')) ||
+      (cleanId.toUpperCase() === 'MISS MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
+      (cleanId === '1003' && cleanPass === '1122');
+
+    if (isMaha) {
       return res.json({
         success: true,
         role: 'instructor',
         instructorInfo: {
-          id: '123123',
-          name: 'Mr. Abdulleh Hashmi',
-          email: 'abdulleh.hashmi@vocalvantage.edu',
+          id: cleanId.toUpperCase() === 'MAHA' ? 'MAHA' : '123123',
+          name: 'Miss Maha',
+          email: 'miss.maha@vocalvantage.online',
         },
         source: 'server-local',
       });
@@ -277,6 +295,11 @@ app.post('/api/auth/login', async (req, res) => {
 
 // API ROUTE: Fetch Enrolled Students List
 app.get('/api/students', async (req, res) => {
+  const { instructor, instructorName } = req.query;
+  const isMahaReq =
+    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor === '123123')) ||
+    (typeof instructorName === 'string' && instructorName.toLowerCase().includes('maha'));
+
   const defaultStudents = [
     {
       id: 'std-690h',
@@ -294,9 +317,9 @@ app.get('/api/students', async (req, res) => {
       studentId: '625H',
       email: 'abdul.rehman@vocalvantage.online',
       name: 'Abdul REHMAN',
-      instructorName: 'Mr. Abdulleh Hashmi',
-      courseProgram: 'American Accent Program',
-      accentType: 'American Accent',
+      instructorName: 'Miss Maha',
+      courseProgram: 'Core Language Program',
+      accentType: 'Core Language',
       activeAssignments: [],
       previousAssignments: [],
     },
@@ -311,17 +334,25 @@ app.get('/api/students', async (req, res) => {
         .eq('role', 'student');
 
       if (!error && data && data.length > 0) {
-        const mapped = data.map((p) => ({
-          id: p.id || `std-${p.user_id_code?.toLowerCase()}`,
-          studentId: p.user_id_code,
-          email: p.email || (p.user_id_code === '690H' ? 'hafsa.ghumman@vocalvantage.online' : 'abdulrehman@vocalvantage.edu'),
-          name: p.name || (p.user_id_code === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN'),
-          instructorName: p.instructor_name || (p.user_id_code === '690H' ? 'Mr. Hash' : 'Mr. Abdulleh Hashmi'),
-          courseProgram: p.course_program || 'American Accent Program',
-          accentType: p.accent_type || 'American Accent',
-          activeAssignments: [],
-          previousAssignments: [],
-        }));
+        let mapped = data.map((p) => {
+          const is625H = p.user_id_code?.toUpperCase() === '625H';
+          return {
+            id: p.id || `std-${p.user_id_code?.toLowerCase()}`,
+            studentId: p.user_id_code,
+            email: p.email || (p.user_id_code === '690H' ? 'hafsa.ghumman@vocalvantage.online' : 'abdul.rehman@vocalvantage.online'),
+            name: p.name || (p.user_id_code === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN'),
+            instructorName: is625H ? 'Miss Maha' : p.instructor_name || (p.user_id_code === '690H' ? 'Mr. Hash' : 'Miss Maha'),
+            courseProgram: is625H ? 'Core Language Program' : p.course_program || 'American Accent Program',
+            accentType: is625H ? 'Core Language' : p.accent_type || 'American Accent',
+            activeAssignments: [],
+            previousAssignments: [],
+          };
+        });
+
+        if (isMahaReq) {
+          mapped = mapped.filter((s) => s.studentId === '625H' || s.instructorName.toLowerCase().includes('maha'));
+        }
+
         return res.json({ success: true, students: mapped });
       }
     } catch (err) {
@@ -329,7 +360,12 @@ app.get('/api/students', async (req, res) => {
     }
   }
 
-  res.json({ success: true, students: defaultStudents });
+  let resultStudents = defaultStudents;
+  if (isMahaReq) {
+    resultStudents = defaultStudents.filter((s) => s.studentId === '625H');
+  }
+
+  res.json({ success: true, students: resultStudents });
 });
 
 // API ROUTE: Fetch Contact Submissions
@@ -604,6 +640,11 @@ app.get('/api/orders/:identifier', (req, res) => {
 
 // API ROUTE: Fetch Assignments (Merges Supabase & Server File Store)
 app.get('/api/assignments', async (req, res) => {
+  const { studentIdCode, instructor, instructorName } = req.query;
+  const isMahaOnly =
+    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor === '123123')) ||
+    (typeof instructorName === 'string' && instructorName.toLowerCase().includes('maha'));
+
   const supabase = getSupabaseClient();
   let supabaseAssignments: any[] = [];
   let isSupabaseActive = false;
@@ -666,21 +707,23 @@ app.get('/api/assignments', async (req, res) => {
     }
   }
 
-  if (isSupabaseActive) {
-    return res.json({
-      success: true,
-      assignments: supabaseAssignments,
-      supabaseConnected: true,
-      source: 'supabase-cloud',
-    });
+  let finalAssignments = isSupabaseActive
+    ? supabaseAssignments
+    : readJsonFile<any[]>(ASSIGNMENTS_FILE, []);
+
+  // Isolate assignments for Miss Maha: ONLY Abdul Rehman (625H)
+  if (isMahaOnly) {
+    finalAssignments = finalAssignments.filter((a) => a.studentIdCode === '625H');
+  } else if (typeof studentIdCode === 'string' && studentIdCode.trim()) {
+    const code = studentIdCode.trim().toUpperCase();
+    finalAssignments = finalAssignments.filter((a) => a.studentIdCode === code || a.studentIdCode === 'ALL');
   }
 
-  const localAssignments = readJsonFile<any[]>(ASSIGNMENTS_FILE, []);
   res.json({
     success: true,
-    assignments: localAssignments,
-    supabaseConnected: Boolean(supabase),
-    source: 'local-fallback',
+    assignments: finalAssignments,
+    supabaseConnected: isSupabaseActive,
+    source: isSupabaseActive ? 'supabase-cloud' : 'local-fallback',
   });
 });
 

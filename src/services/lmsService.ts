@@ -108,13 +108,24 @@ export async function authenticateUser(
                 data.name ||
                 (data.user_id_code?.toUpperCase() === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN');
               const instructorName =
-                data.instructor_name ||
-                (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Mr. Abdulleh Hashmi');
+                data.user_id_code?.toUpperCase() === '625H'
+                  ? 'Miss Maha'
+                  : data.instructor_name ||
+                    (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Miss Maha');
               const email =
                 data.email ||
                 (data.user_id_code?.toUpperCase() === '690H'
                   ? 'hafsa.ghumman@vocalvantage.online'
-                  : 'abdulrehman@vocalvantage.edu');
+                  : 'abdul.rehman@vocalvantage.online');
+
+              const courseProgram =
+                data.user_id_code?.toUpperCase() === '625H'
+                  ? 'Core Language Program'
+                  : (data.course_program as any) || 'American Accent Program';
+              const accentType =
+                data.user_id_code?.toUpperCase() === '625H'
+                  ? 'Core Language'
+                  : (data.accent_type as any) || 'American Accent';
 
               return {
                 success: true,
@@ -125,8 +136,8 @@ export async function authenticateUser(
                   email: email,
                   name: studentName,
                   instructorName: instructorName,
-                  courseProgram: (data.course_program as any) || 'American Accent Program',
-                  accentType: (data.accent_type as any) || 'American Accent',
+                  courseProgram: courseProgram,
+                  accentType: accentType,
                   activeAssignments: [],
                   previousAssignments: [],
                 },
@@ -138,8 +149,8 @@ export async function authenticateUser(
                 role: 'instructor',
                 instructorInfo: {
                   id: data.user_id_code,
-                  name: data.name || 'Mr. Abdulleh Hashmi',
-                  email: data.email || 'abdulleh.hashmi@vocalvantage.edu',
+                  name: data.name || 'Miss Maha',
+                  email: data.email || 'miss.maha@vocalvantage.online',
                 },
                 source: 'supabase',
               };
@@ -182,14 +193,21 @@ export async function authenticateUser(
       };
     }
   } else {
-    if (cleanId === '123123' && cleanPass === '1122') {
+    // Instructor login for Miss Maha (supports ID: MAHA, 123123, or MISS MAHA with pass: 1122 or 162123)
+    const isMaha =
+      (cleanId.toUpperCase() === 'MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
+      (cleanId === '123123' && (cleanPass === '1122' || cleanPass === '162123')) ||
+      (cleanId.toUpperCase() === 'MISS MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
+      (cleanId === '1003' && cleanPass === '1122');
+
+    if (isMaha) {
       return {
         success: true,
         role: 'instructor',
         instructorInfo: {
-          id: '123123',
-          name: 'Mr. Abdulleh Hashmi',
-          email: 'abdulleh.hashmi@vocalvantage.edu',
+          id: cleanId.toUpperCase() === 'MAHA' ? 'MAHA' : '123123',
+          name: 'Miss Maha',
+          email: 'miss.maha@vocalvantage.online',
         },
         source: 'local',
       };
@@ -227,9 +245,12 @@ export async function checkDatabaseStatus(): Promise<{ serverConnected: boolean;
 /**
  * Fetch list of enrolled students from Server or Supabase, falling back to ENROLLED_STUDENTS
  */
-export async function fetchEnrolledStudentsList(): Promise<StudentProfile[]> {
+export async function fetchEnrolledStudentsList(instructorName?: string): Promise<StudentProfile[]> {
   try {
-    const res = await fetch('/api/students');
+    const url = instructorName
+      ? `/api/students?instructorName=${encodeURIComponent(instructorName)}`
+      : '/api/students';
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.students) && data.students.length > 0) {
@@ -240,24 +261,39 @@ export async function fetchEnrolledStudentsList(): Promise<StudentProfile[]> {
     console.warn('Could not fetch /api/students:', err);
   }
 
+  if (instructorName && instructorName.toLowerCase().includes('maha')) {
+    return [ABDUL_REHMAN_STUDENT];
+  }
+
   return ENROLLED_STUDENTS;
 }
 
 /**
  * Fetch assignments strictly from Supabase Cloud DB when available
  */
-export async function fetchAssignmentsFromStore(storageKey: string): Promise<Assignment[]> {
+export async function fetchAssignmentsFromStore(
+  storageKey: string,
+  filterInstructorName?: string
+): Promise<Assignment[]> {
   await initSupabaseFromBackend();
+
+  const isMaha = filterInstructorName && filterInstructorName.toLowerCase().includes('maha');
 
   // 1. Try Direct Client Supabase first
   if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { data: asgData, error: asgError } = await supabase
+        let query = supabase
           .from('assignments')
           .select('*')
           .order('created_at', { ascending: false });
+
+        if (isMaha) {
+          query = query.eq('student_id_code', '625H');
+        }
+
+        const { data: asgData, error: asgError } = await query;
 
         if (!asgError && asgData) {
           const { data: subData } = await supabase.from('submissions').select('*');
@@ -265,6 +301,7 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
           const subMap: Record<string, any> = {};
           if (subData) {
             subData.forEach((sub) => {
+              if (isMaha && sub.student_id_code !== '625H') return;
               subMap[sub.assignment_id] = {
                 name: sub.file_name,
                 size: sub.file_size,
@@ -282,7 +319,7 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
             });
           }
 
-          const cloudList: Assignment[] = asgData.map((row) => ({
+          let cloudList: Assignment[] = asgData.map((row) => ({
             id: row.id,
             studentIdCode: row.student_id_code || 'ALL',
             targetStudentName:
@@ -303,6 +340,10 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
             submittedFile: subMap[row.id] || undefined,
           }));
 
+          if (isMaha) {
+            cloudList = cloudList.filter((a) => a.studentIdCode === '625H');
+          }
+
           try {
             localStorage.setItem(storageKey, JSON.stringify(cloudList));
           } catch {}
@@ -317,17 +358,22 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
 
   // 2. Try Express Server API
   try {
-    const res = await fetch('/api/assignments');
+    const url = isMaha ? '/api/assignments?instructorName=Miss%20Maha' : '/api/assignments';
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.assignments)) {
+        let list = data.assignments;
+        if (isMaha) {
+          list = list.filter((a: Assignment) => a.studentIdCode === '625H');
+        }
         if (data.source === 'supabase-cloud') {
           try {
-            localStorage.setItem(storageKey, JSON.stringify(data.assignments));
+            localStorage.setItem(storageKey, JSON.stringify(list));
           } catch {}
-          return data.assignments;
+          return list;
         }
-        return data.assignments;
+        return list;
       }
     }
   } catch (err) {
@@ -338,7 +384,11 @@ export async function fetchAssignmentsFromStore(storageKey: string): Promise<Ass
   try {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (isMaha && Array.isArray(parsed)) {
+        return parsed.filter((a: Assignment) => a.studentIdCode === '625H');
+      }
+      return parsed;
     }
   } catch {}
 
