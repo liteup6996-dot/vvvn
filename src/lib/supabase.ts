@@ -136,10 +136,29 @@ CREATE TABLE IF NOT EXISTS public.submissions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Enable Row Level Security (RLS) and Create Access Policies
+-- 4. Create Resources Table (Study Materials & Documents)
+CREATE TABLE IF NOT EXISTS public.resources (
+  id TEXT PRIMARY KEY,
+  student_id_code TEXT NOT NULL DEFAULT '625H',
+  target_student_name TEXT DEFAULT 'Abdul REHMAN',
+  instructor_name TEXT DEFAULT 'Miss Maha',
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'Phonetics & Pronunciation',
+  uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+  file_name TEXT,
+  file_size TEXT,
+  file_type TEXT,
+  data_url TEXT,
+  link_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Enable Row Level Security (RLS) and Create Access Policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
 
 DO $$ 
 BEGIN
@@ -178,9 +197,23 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Update Submissions' AND tablename = 'submissions') THEN
         CREATE POLICY "Public Update Submissions" ON public.submissions FOR UPDATE USING (true);
     END IF;
+
+    -- Resources Policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Read Resources' AND tablename = 'resources') THEN
+        CREATE POLICY "Public Read Resources" ON public.resources FOR SELECT USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Insert Resources' AND tablename = 'resources') THEN
+        CREATE POLICY "Public Insert Resources" ON public.resources FOR INSERT WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Update Resources' AND tablename = 'resources') THEN
+        CREATE POLICY "Public Update Resources" ON public.resources FOR UPDATE USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Delete Resources' AND tablename = 'resources') THEN
+        CREATE POLICY "Public Delete Resources" ON public.resources FOR DELETE USING (true);
+    END IF;
 END $$;
 
--- 5. Seed Default User Credentials & Quota Maintenance
+-- 6. Seed Default User Credentials & Quota Maintenance
 -- Optional: Clear old assignment history if quota is exceeded
 -- DELETE FROM public.submissions;
 -- DELETE FROM public.assignments;

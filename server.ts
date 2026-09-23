@@ -15,6 +15,7 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const ASSIGNMENTS_FILE = path.join(DATA_DIR, 'assignments.json');
 const CONTACTS_FILE = path.join(DATA_DIR, 'contact_submissions.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
+const RESOURCES_FILE = path.join(DATA_DIR, 'resources.json');
 const SUPABASE_CONFIG_FILE = path.join(DATA_DIR, 'supabase_config.json');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -23,6 +24,10 @@ if (!fs.existsSync(DATA_DIR)) {
 
 if (!fs.existsSync(ORDERS_FILE)) {
   fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), 'utf-8');
+}
+
+if (!fs.existsSync(RESOURCES_FILE)) {
+  fs.writeFileSync(RESOURCES_FILE, JSON.stringify([], null, 2), 'utf-8');
 }
 
 if (!fs.existsSync(ASSIGNMENTS_FILE)) {
@@ -883,6 +888,177 @@ app.delete('/api/assignments', async (req, res) => {
   }
 
   writeJsonFile(ASSIGNMENTS_FILE, []);
+  res.json({ success: true });
+});
+
+// ==========================================
+// API ROUTES: Study Materials & Resources (Dual Supabase & File Store)
+// ==========================================
+
+// GET /api/resources - Fetch learning resources (filtered by studentIdCode or instructor)
+app.get('/api/resources', async (req, res) => {
+  const { studentIdCode, instructor, instructorName } = req.query;
+  const isMahaOnly =
+    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor === '123123')) ||
+    (typeof instructorName === 'string' && instructorName.toLowerCase().includes('maha'));
+
+  const supabase = getSupabaseClient();
+  let supabaseResources: any[] = [];
+  let isSupabaseActive = false;
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        isSupabaseActive = true;
+        supabaseResources = data.map((row) => ({
+          id: row.id,
+          studentIdCode: row.student_id_code || '625H',
+          targetStudentName: row.target_student_name || 'Abdul REHMAN',
+          instructorName: row.instructor_name || 'Miss Maha',
+          title: row.title,
+          description: row.description || '',
+          category: row.category || 'Phonetics & Pronunciation',
+          uploadedAt: row.uploaded_at || new Date().toISOString(),
+          file: row.file_name
+            ? {
+                name: row.file_name,
+                size: row.file_size || '',
+                type: row.file_type || 'application/octet-stream',
+                dataUrl: row.data_url || undefined,
+              }
+            : undefined,
+          linkUrl: row.link_url || undefined,
+        }));
+      }
+    } catch (err) {
+      console.warn('Supabase resources fetch warning:', err);
+    }
+  }
+
+  let finalResources = isSupabaseActive
+    ? supabaseResources
+    : readJsonFile<any[]>(RESOURCES_FILE, []);
+
+  // Filter for Miss Maha or specific Student ID
+  if (isMahaOnly) {
+    finalResources = finalResources.filter(
+      (r) => r.studentIdCode === '625H' || (r.instructorName && r.instructorName.toLowerCase().includes('maha'))
+    );
+  } else if (typeof studentIdCode === 'string' && studentIdCode.trim()) {
+    const code = studentIdCode.trim().toUpperCase();
+    finalResources = finalResources.filter(
+      (r) => r.studentIdCode === code || r.studentIdCode === 'ALL'
+    );
+  }
+
+  res.json({
+    success: true,
+    resources: finalResources,
+    supabaseConnected: isSupabaseActive,
+    source: isSupabaseActive ? 'supabase-cloud' : 'local-fallback',
+  });
+});
+
+// POST /api/resources - Upload / Add a new resource
+app.post('/api/resources', async (req, res) => {
+  const { resource } = req.body;
+  if (!resource || !resource.title) {
+    return res.status(400).json({ success: false, message: 'Resource title and payload required' });
+  }
+
+  const resId = resource.id || `res-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const studentIdCode = resource.studentIdCode || '625H';
+  const targetStudentName = resource.targetStudentName || (studentIdCode === '625H' ? 'Abdul REHMAN' : studentIdCode);
+  const instructorName = resource.instructorName || 'Miss Maha';
+  const title = resource.title;
+  const description = resource.description || '';
+  const category = resource.category || 'Phonetics & Pronunciation';
+  const uploadedAt = resource.uploadedAt || new Date().toISOString();
+  const file = resource.file;
+  const linkUrl = resource.linkUrl || null;
+
+  const newResource = {
+    id: resId,
+    studentIdCode,
+    targetStudentName,
+    instructorName,
+    title,
+    description,
+    category,
+    uploadedAt,
+    file,
+    linkUrl: linkUrl || undefined,
+  };
+
+  let savedToSupabase = false;
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('resources').upsert({
+        id: resId,
+        student_id_code: studentIdCode,
+        target_student_name: targetStudentName,
+        instructor_name: instructorName,
+        title: title,
+        description: description,
+        category: category,
+        uploaded_at: uploadedAt,
+        file_name: file ? file.name : null,
+        file_size: file ? file.size : null,
+        file_type: file ? file.type : null,
+        data_url: file ? file.dataUrl : null,
+        link_url: linkUrl,
+      });
+
+      if (!error) {
+        savedToSupabase = true;
+      } else {
+        console.warn('Supabase resource insert error:', error.message);
+      }
+    } catch (err) {
+      console.warn('Supabase resource save exception:', err);
+    }
+  }
+
+  // Always sync to local JSON file
+  const localResources = readJsonFile<any[]>(RESOURCES_FILE, []);
+  const existingIdx = localResources.findIndex((r) => r.id === resId);
+  if (existingIdx >= 0) {
+    localResources[existingIdx] = newResource;
+  } else {
+    localResources.unshift(newResource);
+  }
+  writeJsonFile(RESOURCES_FILE, localResources);
+
+  res.json({
+    success: true,
+    resource: newResource,
+    savedToSupabase,
+  });
+});
+
+// DELETE /api/resources/:id - Delete a resource
+app.delete('/api/resources/:id', async (req, res) => {
+  const resId = req.params.id;
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      await supabase.from('resources').delete().eq('id', resId);
+    } catch (err) {
+      console.error('Supabase delete resource error:', err);
+    }
+  }
+
+  const localResources = readJsonFile<any[]>(RESOURCES_FILE, []);
+  const filtered = localResources.filter((r) => r.id !== resId);
+  writeJsonFile(RESOURCES_FILE, filtered);
+
   res.json({ success: true });
 });
 

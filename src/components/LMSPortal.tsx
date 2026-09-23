@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StudentProfile, Assignment, ContactSubmissionRecord } from '../types';
+import { StudentProfile, Assignment, ContactSubmissionRecord, CourseResource } from '../types';
 import { ABDUL_REHMAN_STUDENT, HAFSA_GHUMMAN_STUDENT, ENROLLED_STUDENTS, LOGO_URL } from '../data';
 import { isSupabaseConfigured, initSupabaseFromBackend, SUPABASE_SETUP_SQL } from '../lib/supabase';
 import {
@@ -15,6 +15,9 @@ import {
   clearAllContactSubmissions,
   updateContactStatus,
   fetchEnrolledStudentsList,
+  fetchResourcesFromStore,
+  saveResourceToStore,
+  deleteResourceFromStore,
 } from '../services/lmsService';
 import {
   Upload,
@@ -51,6 +54,10 @@ import {
   PhoneCall,
   MessageSquare,
   X,
+  FolderOpen,
+  FolderPlus,
+  ExternalLink,
+  Paperclip,
 } from 'lucide-react';
 
 interface LMSPortalProps {
@@ -124,8 +131,31 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   const [submittingAsgId, setSubmittingAsgId] = useState<string | null>(null);
   const [submitSuccessMsg, setSubmitSuccessMsg] = useState<string | null>(null);
 
-  // Student Active vs Submitted Tab ('active' | 'submitted')
-  const [studentTab, setStudentTab] = useState<'active' | 'submitted'>('active');
+  // Student Tabs: Active, Submitted, Resources
+  const [studentTab, setStudentTab] = useState<'active' | 'submitted' | 'resources'>('active');
+  const [studentResourceCategoryFilter, setStudentResourceCategoryFilter] = useState<string>('all');
+
+  // Instructor Tabs: Assignments vs Resources
+  const [instructorTab, setInstructorTab] = useState<'assignments' | 'resources'>('assignments');
+
+  // Resources State
+  const [resources, setResources] = useState<CourseResource[]>([]);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
+
+  // Instructor Resource Upload Form State
+  const [resTitle, setResTitle] = useState('');
+  const [resCategory, setResCategory] = useState<string>('Phonetics & Pronunciation');
+  const [resDescription, setResDescription] = useState('');
+  const [resLinkUrl, setResLinkUrl] = useState('');
+  const [resAttachedFile, setResAttachedFile] = useState<{
+    name: string;
+    size: string;
+    type: string;
+    dataUrl: string;
+  } | null>(null);
+  const [isUploadingResource, setIsUploadingResource] = useState(false);
+  const [resSuccessMsg, setResSuccessMsg] = useState('');
+  const [resErrorMsg, setResErrorMsg] = useState('');
 
   // Load assignments from Central DB or localStorage on mount
   const loadAssignments = async (showSpinner = false) => {
@@ -150,16 +180,34 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
     setSupabaseConnected(dbStatus.supabaseConnected);
   };
 
+  // Load study resources from Central DB or server on mount
+  const loadResources = async (showSpinner = false) => {
+    if (showSpinner) setIsLoadingResources(true);
+    try {
+      const studentCode = currentStudent ? currentStudent.studentId : undefined;
+      const instName = isInstructorLoggedIn ? (currentInstructor?.name || 'Miss Maha') : undefined;
+      const list = await fetchResourcesFromStore(studentCode, instName);
+      setResources(list);
+    } catch (err) {
+      console.warn('Error loading resources:', err);
+    } finally {
+      if (showSpinner) setIsLoadingResources(false);
+    }
+  };
+
   useEffect(() => {
     loadAssignments(true);
+    loadResources(true);
 
-    // Auto-refresh assignments every 3 seconds for real-time multi-device sync
+    // Auto-refresh assignments and resources every 3 seconds for real-time multi-device sync
     const interval = setInterval(() => {
       loadAssignments(false);
+      loadResources(false);
     }, 3000);
 
     const handleFocus = () => {
       loadAssignments(false);
+      loadResources(false);
     };
     window.addEventListener('focus', handleFocus);
 
@@ -167,7 +215,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [currentStudent, isInstructorLoggedIn]);
 
   // Load contact form submissions from Central DB
   const loadContacts = async () => {
@@ -508,6 +556,74 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
     };
 
     reader.readAsDataURL(file);
+  };
+
+  // Handle Miss Maha uploading a study resource
+  const handleUploadResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resTitle.trim()) {
+      setResErrorMsg('Resource title is required.');
+      return;
+    }
+    setResErrorMsg('');
+    setIsUploadingResource(true);
+
+    try {
+      const newRes: CourseResource = {
+        id: `res-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        studentIdCode: '625H', // Exclusively assigned to Abdul Rehman
+        targetStudentName: 'Abdul REHMAN',
+        instructorName: currentInstructor?.name || 'Miss Maha',
+        title: resTitle.trim(),
+        description: resDescription.trim(),
+        category: resCategory,
+        uploadedAt: new Date().toISOString(),
+        file: resAttachedFile || undefined,
+        linkUrl: resLinkUrl.trim() || undefined,
+      };
+
+      const result = await saveResourceToStore(newRes);
+      if (result.success) {
+        setResSuccessMsg('Study material published successfully and synced to database in real-time!');
+        setResTitle('');
+        setResDescription('');
+        setResLinkUrl('');
+        setResAttachedFile(null);
+        await loadResources(false);
+        setTimeout(() => setResSuccessMsg(''), 5000);
+      } else {
+        setResErrorMsg('Failed to upload resource. Please try again.');
+      }
+    } catch (err) {
+      console.error('Upload resource error:', err);
+      setResErrorMsg('An error occurred while uploading resource.');
+    } finally {
+      setIsUploadingResource(false);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId: string) => {
+    if (!confirm('Are you sure you want to delete this study resource?')) return;
+    const ok = await deleteResourceFromStore(resourceId);
+    if (ok) {
+      setResources((prev) => prev.filter((r) => r.id !== resourceId));
+    }
+  };
+
+  const handleResourceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setResAttachedFile({
+          name: file.name,
+          size: `${(file.size / 1024).toFixed(1)} KB`,
+          type: file.type || 'application/octet-stream',
+          dataUrl: reader.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Helper to trigger download of submitted student file
@@ -1339,8 +1455,39 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
             </div>
           </div>
 
-          {/* CREATE ASSIGNMENT FORM */}
-          <section className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6">
+          {/* INSTRUCTOR TABS: Assignments vs Study Resources */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 pb-3">
+            <button
+              type="button"
+              onClick={() => setInstructorTab('assignments')}
+              className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                instructorTab === 'assignments'
+                  ? 'bg-[#7A1B28] text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <ClipboardList className="w-4 h-4" />
+              <span>Homework Tasks ({assignments.filter((a) => a.studentIdCode === '625H').length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setInstructorTab('resources')}
+              className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                instructorTab === 'resources'
+                  ? 'bg-blue-700 text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span>Study Materials & Resources ({resources.length})</span>
+            </button>
+          </div>
+
+          {instructorTab === 'assignments' ? (
+            <>
+              {/* CREATE ASSIGNMENT FORM */}
+              <section className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-gray-900 font-serif text-lg font-bold">
                 <PlusCircle className="w-5 h-5 text-[#7A1B28]" />
@@ -1669,6 +1816,272 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
               </div>
             )}
           </section>
+            </>
+          ) : (
+            /* INSTRUCTOR STUDY RESOURCES & MATERIALS TAB */
+            <div className="space-y-10">
+              {/* UPLOAD RESOURCE FORM */}
+              <section className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-gray-900 font-serif text-lg font-bold">
+                    <FolderPlus className="w-5 h-5 text-blue-600" />
+                    <h2>Upload & Share Study Material for Abdul REHMAN</h2>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                    Target: Abdul REHMAN (625H) • Core Language
+                  </span>
+                </div>
+
+                {resSuccessMsg && (
+                  <div className="p-4 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-md flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{resSuccessMsg}</span>
+                  </div>
+                )}
+
+                {resErrorMsg && (
+                  <div className="p-4 bg-red-50 text-red-800 border border-red-200 text-xs font-semibold rounded-md flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                    <span>{resErrorMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleUploadResource} className="space-y-6">
+                  {/* Target Student */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Target Student *
+                    </label>
+                    <select
+                      disabled
+                      value="625H"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium bg-gray-50 text-gray-700 cursor-not-allowed"
+                    >
+                      <option value="625H">Abdul REHMAN (ID: 625H • Core Language Program • Assigned Instructor: Miss Maha)</option>
+                    </select>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      Uploaded resources will instantly synchronize to Abdul Rehman's portal and Supabase database.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Resource Title */}
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
+                        Resource Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Core Articulation Guide & Formant Chart"
+                        value={resTitle}
+                        onChange={(e) => setResTitle(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                      />
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
+                        Resource Category *
+                      </label>
+                      <select
+                        value={resCategory}
+                        onChange={(e) => setResCategory(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 bg-white cursor-pointer"
+                      >
+                        <option value="Phonetics & Pronunciation">Phonetics & Pronunciation</option>
+                        <option value="Grammar & Vocabulary">Grammar & Vocabulary</option>
+                        <option value="Listening & Audio">Listening & Audio Drills</option>
+                        <option value="Worksheets & Guides">Worksheets & Reference Guides</option>
+                        <option value="General Reading">Reading Materials & Articles</option>
+                        <option value="Session Notes">Session Notes & Action Items</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Description / Instructions */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Description & Learning Instructions
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Outline guidelines, vowel/consonant articulatory points, or instructions for using this resource..."
+                      value={resDescription}
+                      onChange={(e) => setResDescription(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 resize-y"
+                    />
+                  </div>
+
+                  {/* File Upload Box */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Upload File (PDF, Audio, Video, Document, or Image)
+                    </label>
+                    <div className="border-2 border-dashed border-gray-300 hover:border-blue-500 rounded-lg p-6 text-center transition-all bg-gray-50/50">
+                      <FolderOpen className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-gray-700 mb-1">
+                        Select a study document or audio recording to attach
+                      </p>
+                      <p className="text-xs text-gray-400 mb-4">
+                        Supports PDF, MP3, WAV, M4A, DOCX, and Image files
+                      </p>
+                      <label className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 cursor-pointer">
+                        <Paperclip className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
+                        <span>Choose File</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.mp3,.wav,.m4a,.doc,.docx,.mp4,image/*"
+                          onChange={handleResourceFileChange}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {resAttachedFile && (
+                        <div className="mt-4 p-3 bg-white border border-blue-200 rounded-md inline-flex items-center gap-3 text-left">
+                          <FileCheck className="w-5 h-5 text-blue-600 shrink-0" />
+                          <div className="text-xs">
+                            <p className="font-semibold text-gray-900">{resAttachedFile.name}</p>
+                            <p className="text-gray-500">{resAttachedFile.size} • Attached</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setResAttachedFile(null)}
+                            className="text-gray-400 hover:text-red-500 p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Optional External Link */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
+                      External Reference Link / Web Resource (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://example.com/audio-or-guide"
+                      value={resLinkUrl}
+                      onChange={(e) => setResLinkUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isUploadingResource}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-md text-xs font-semibold uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2 shadow-2xs disabled:opacity-50 cursor-pointer"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      <span>{isUploadingResource ? 'Publishing Resource...' : 'Upload & Publish Resource to Student'}</span>
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              {/* MANAGE UPLOADED RESOURCES LIST */}
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FolderOpen className="w-5 h-5 text-blue-600" />
+                    <h3 className="font-serif text-lg font-bold text-gray-900">
+                      Published Resources for Abdul REHMAN (625H)
+                    </h3>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                    {resources.length} Available
+                  </span>
+                </div>
+
+                {isLoadingResources ? (
+                  <div className="p-8 text-center text-xs text-gray-500">Loading resources...</div>
+                ) : resources.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
+                    <FolderOpen className="w-10 h-10 text-gray-300 mx-auto" />
+                    <p className="text-gray-900 font-semibold text-base">No Resources Published Yet</p>
+                    <p className="text-xs text-gray-500">
+                      Use the form above to upload PDFs, audio drills, or notes for Abdul REHMAN.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {resources.map((res) => (
+                      <div key={res.id} className="bg-white rounded-xl border border-gray-200 p-5 space-y-3.5 shadow-2xs hover:border-blue-300 transition-colors">
+                        <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 inline-block">
+                              {res.category}
+                            </span>
+                            <h4 className="font-serif font-bold text-gray-900 text-base">{res.title}</h4>
+                            <p className="text-[11px] text-gray-400">
+                              Uploaded: {new Date(res.uploadedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteResource(res.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors"
+                            title="Delete Resource"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {res.description && (
+                          <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                            {res.description}
+                          </p>
+                        )}
+
+                        {res.file && (
+                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-xs text-gray-700 font-medium truncate">
+                                {getFileIcon(res.file.type)}
+                                <span className="truncate">{res.file.name}</span>
+                                <span className="text-gray-400 text-[11px]">({res.file.size})</span>
+                              </div>
+                              {res.file.dataUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadFile(res.file!)}
+                                  className="px-2.5 py-1 bg-white border border-gray-300 rounded text-[11px] font-semibold text-gray-700 hover:bg-gray-100 inline-flex items-center gap-1 cursor-pointer shrink-0"
+                                >
+                                  <Download className="w-3 h-3" />
+                                  <span>Download</span>
+                                </button>
+                              )}
+                            </div>
+                            {res.file.type.includes('audio') && res.file.dataUrl && (
+                              <audio controls src={res.file.dataUrl} className="w-full h-8 pt-1" />
+                            )}
+                          </div>
+                        )}
+
+                        {res.linkUrl && (
+                          <a
+                            href={res.linkUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline pt-1"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>View External Resource</span>
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
 
         </main>
       </div>
@@ -1811,7 +2224,20 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Submitted Assignments Bar ({submittedStudentAssignments.length})</span>
+              <span>Submitted Assignments ({submittedStudentAssignments.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStudentTab('resources')}
+              className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                studentTab === 'resources'
+                  ? 'bg-blue-700 text-white shadow-xs'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span>Study Resources & Materials ({resources.length})</span>
             </button>
           </div>
 
@@ -1998,7 +2424,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                 })}
               </div>
             )
-          ) : (
+          ) : studentTab === 'submitted' ? (
             /* SUBMITTED ASSIGNMENTS TAB CONTENT */
             submittedStudentAssignments.length === 0 ? (
               <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
@@ -2090,6 +2516,147 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                 ))}
               </div>
             )
+          ) : (
+            /* STUDY RESOURCES & MATERIALS TAB CONTENT */
+            <div className="space-y-6">
+              {/* Category Filter Chips */}
+              <div className="flex flex-wrap items-center gap-2 pb-1">
+                {[
+                  { id: 'all', label: 'All Resources' },
+                  { id: 'Phonetics', label: 'Phonetics & Pronunciation' },
+                  { id: 'Grammar', label: 'Grammar & Vocabulary' },
+                  { id: 'Listening', label: 'Listening & Audio' },
+                  { id: 'Worksheets', label: 'Worksheets & Guides' },
+                  { id: 'Reading', label: 'Reading Materials' },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setStudentResourceCategoryFilter(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                      studentResourceCategoryFilter === cat.id
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Resources List */}
+              {(() => {
+                const filteredResources = resources.filter((r) => {
+                  if (studentResourceCategoryFilter === 'all') return true;
+                  return (
+                    r.category?.toLowerCase().includes(studentResourceCategoryFilter.toLowerCase()) ||
+                    r.title?.toLowerCase().includes(studentResourceCategoryFilter.toLowerCase())
+                  );
+                });
+
+                if (filteredResources.length === 0) {
+                  return (
+                    <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
+                      <FolderOpen className="w-10 h-10 text-gray-300 mx-auto" />
+                      <p className="text-gray-900 font-semibold text-base">No Resources Found</p>
+                      <p className="text-xs text-gray-500 max-w-md mx-auto">
+                        {resources.length === 0
+                          ? `Study materials, worksheets, and audio recordings uploaded by ${currentStudent.instructorName} will automatically show up here in real-time.`
+                          : 'No resources match the selected category filter. Try selecting "All Resources".'}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {filteredResources.map((res) => (
+                      <div
+                        key={res.id}
+                        className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 shadow-2xs hover:shadow-xs hover:border-blue-200 transition-all flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                              {res.category}
+                            </span>
+                            <span className="text-[11px] text-gray-400">
+                              {new Date(res.uploadedAt).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-lg font-bold font-serif text-gray-900 leading-snug">
+                              {res.title}
+                            </h3>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Uploaded by {res.instructorName || currentStudent.instructorName} • {currentStudent.courseProgram}
+                            </p>
+                          </div>
+
+                          {res.description && (
+                            <div className="bg-slate-50 border border-slate-200/70 rounded-lg p-3 text-xs text-slate-700 whitespace-pre-line leading-relaxed">
+                              {res.description}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-3 pt-2 border-t border-gray-100">
+                          {res.file && (
+                            <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 text-xs text-gray-800 font-semibold truncate">
+                                  {getFileIcon(res.file.type)}
+                                  <span className="truncate">{res.file.name}</span>
+                                  <span className="text-gray-400 font-normal text-[11px]">({res.file.size})</span>
+                                </div>
+
+                                {res.file.dataUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadFile(res.file!)}
+                                    className="px-3 py-1.5 bg-[#7A1B28] text-white rounded text-xs font-semibold hover:bg-[#621520] transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    <span>Download</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {res.file.type.includes('audio') && res.file.dataUrl && (
+                                <div className="pt-1">
+                                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                    <Music className="w-3 h-3 text-blue-600" />
+                                    <span>In-Browser Audio Player</span>
+                                  </p>
+                                  <audio controls src={res.file.dataUrl} className="w-full h-8" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {res.linkUrl && (
+                            <a
+                              href={res.linkUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Access Web Link / External Material</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           )}
         </section>
 

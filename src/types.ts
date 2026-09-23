@@ -87,6 +87,24 @@ export interface Assignment {
   };
 }
 
+export interface CourseResource {
+  id: string;
+  studentIdCode: string; // e.g. '625H' or 'ALL'
+  targetStudentName: string;
+  instructorName: string;
+  title: string;
+  description: string;
+  category: 'Grammar & Vocabulary' | 'Phonetics & Pronunciation' | 'Listening & Audio' | 'Worksheets & Guides' | 'General Reading' | string;
+  uploadedAt: string;
+  file?: {
+    name: string;
+    size: string;
+    type: string;
+    dataUrl?: string;
+  };
+  linkUrl?: string;
+}
+
 export interface StudentProfile {
   id: string;
   studentId: string;
@@ -97,4 +115,5 @@ export interface StudentProfile {
   accentType: AccentType | 'Core Language' | string;
   activeAssignments: Assignment[];
   previousAssignments: Assignment[];
+  resources?: CourseResource[];
 }

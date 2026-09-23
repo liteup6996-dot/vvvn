@@ -140,7 +140,7 @@ export const Footer: React.FC<FooterProps> = ({
             </button>
           </div>
 
-          {/* Button at the end: Review Trust pilot (Passcode Protected with 7869) */}
+          {/* Button at the end: Review Trustpilot (Passcode Protected with 7869) */}
           <div className="pt-2 md:pt-0">
             <button
               onClick={() => setShowPasscodeModal(true)}
@@ -150,7 +150,7 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="w-4 h-4 rounded-full bg-[#00b67a] flex items-center justify-center text-white shrink-0">
                 <Star className="w-2.5 h-2.5 fill-white" />
               </div>
-              <span>Review Trust pilot</span>
+              <span>Review Trustpilot</span>
               <Lock className="w-3 h-3 text-gray-400 group-hover:text-emerald-600" />
             </button>
           </div>

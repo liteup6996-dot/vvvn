@@ -1,5 +1,5 @@
 import { getSupabase, isSupabaseConfigured, initSupabaseFromBackend } from '../lib/supabase';
-import { Assignment, StudentProfile } from '../types';
+import { Assignment, StudentProfile, CourseResource } from '../types';
 import { ABDUL_REHMAN_STUDENT, HAFSA_GHUMMAN_STUDENT, ENROLLED_STUDENTS } from '../data';
 import {
   submitContactFormLogic,
@@ -641,6 +641,143 @@ export async function updateContactStatus(subId: string, status: string): Promis
     return res.ok;
   } catch (err) {
     console.error('Update contact status error:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetch Course Resources from Supabase or server
+ */
+export async function fetchResourcesFromStore(
+  studentIdCode?: string,
+  instructorName?: string
+): Promise<CourseResource[]> {
+  try {
+    const params = new URLSearchParams();
+    if (studentIdCode) params.set('studentIdCode', studentIdCode);
+    if (instructorName) params.set('instructorName', instructorName);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`/api/resources${queryStr}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.resources)) {
+        return data.resources;
+      }
+    }
+  } catch (err) {
+    console.warn('Error fetching /api/resources:', err);
+  }
+
+  // Supabase direct fallback if client is active
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        let query = supabase.from('resources').select('*').order('created_at', { ascending: false });
+        if (studentIdCode) {
+          query = query.or(`student_id_code.eq.${studentIdCode},student_id_code.eq.ALL`);
+        }
+        const { data, error } = await query;
+        if (!error && data) {
+          return data.map((row: any) => ({
+            id: row.id,
+            studentIdCode: row.student_id_code,
+            targetStudentName: row.target_student_name,
+            instructorName: row.instructor_name,
+            title: row.title,
+            description: row.description,
+            category: row.category,
+            uploadedAt: row.uploaded_at,
+            file: row.file_name
+              ? {
+                  name: row.file_name,
+                  size: row.file_size,
+                  type: row.file_type,
+                  dataUrl: row.data_url,
+                }
+              : undefined,
+            linkUrl: row.link_url,
+          }));
+        }
+      } catch (e) {
+        console.warn('Direct Supabase resources fetch error:', e);
+      }
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Upload / Save a Course Resource
+ */
+export async function saveResourceToStore(
+  resource: CourseResource
+): Promise<{ success: boolean; resource?: CourseResource; savedToSupabase?: boolean }> {
+  try {
+    const res = await fetch('/api/resources', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resource }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        return {
+          success: true,
+          resource: data.resource,
+          savedToSupabase: data.savedToSupabase,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error saving resource via API:', err);
+  }
+
+  // Direct Supabase fallback
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('resources').upsert({
+          id: resource.id,
+          student_id_code: resource.studentIdCode,
+          target_student_name: resource.targetStudentName,
+          instructor_name: resource.instructorName,
+          title: resource.title,
+          description: resource.description,
+          category: resource.category,
+          uploaded_at: resource.uploadedAt,
+          file_name: resource.file ? resource.file.name : null,
+          file_size: resource.file ? resource.file.size : null,
+          file_type: resource.file ? resource.file.type : null,
+          data_url: resource.file ? resource.file.dataUrl : null,
+          link_url: resource.linkUrl || null,
+        });
+
+        if (!error) {
+          return { success: true, resource, savedToSupabase: true };
+        }
+      } catch (err) {
+        console.warn('Direct Supabase resource upsert error:', err);
+      }
+    }
+  }
+
+  return { success: true, resource, savedToSupabase: false };
+}
+
+/**
+ * Delete a Course Resource
+ */
+export async function deleteResourceFromStore(resourceId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/resources/${resourceId}`, { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.error('Error deleting resource:', err);
     return false;
   }
 }

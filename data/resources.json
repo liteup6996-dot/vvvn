@@ -1,0 +1,17 @@
+[
+  {
+    "id": "res-core-001",
+    "studentIdCode": "625H",
+    "targetStudentName": "Abdul REHMAN",
+    "instructorName": "Miss Maha",
+    "title": "Core Vowel Articulation Quadrilateral & Formant Guide",
+    "description": "Essential acoustic and articulatory reference sheet for the Core Language Program. Details tongue height, backness, and lip rounding parameters for General American vowel contrast drills (tense /i/ vs lax /ɪ/ and /u/ vs /ʊ/).",
+    "category": "Phonetics & Pronunciation",
+    "uploadedAt": "2026-09-22T10:30:00.000Z",
+    "file": {
+      "name": "Core_Vowel_Articulation_Guide.pdf",
+      "size": "245.8 KB",
+      "type": "application/pdf"
+    }
+  }
+]
