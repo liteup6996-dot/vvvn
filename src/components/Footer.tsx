@@ -74,6 +74,14 @@ export const Footer: React.FC<FooterProps> = ({
               LMS
             </button>
             <button
+              onClick={() => onNavigate('certificate')}
+              className="hover:text-[#7A1B28] transition-colors cursor-pointer inline-flex items-center gap-1 text-[#7A1B28]"
+              id="footer-nav-verify-cert"
+              title="Official Certificate Verification Portal"
+            >
+              <span>Verify Certificate</span>
+            </button>
+            <button
               onClick={() => onNavigate('home', 'contact')}
               className="hover:text-[#7A1B28] transition-colors cursor-pointer"
               id="footer-nav-contact"

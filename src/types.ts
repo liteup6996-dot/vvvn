@@ -1,4 +1,46 @@
-export type PageView = 'home' | 'team' | 'lms' | 'review';
+export type PageView = 'home' | 'team' | 'lms' | 'review' | 'certificate';
+
+export interface CurriculumDay {
+  days: string; // e.g. "1-2"
+  focus: string; // e.g. 'K / "Ka"'
+  content: string; // e.g. "Clean K release and mouth placement. Vocabulary: key, keep..."
+  score?: number;
+}
+
+export interface CurriculumSection {
+  sectionNumber: number;
+  sectionTitle: string; // "SECTION 1 | CORE ACCENT SOUNDS | DAYS 1-10"
+  subtitle?: string;
+  daysRange: string;
+  items: CurriculumDay[];
+}
+
+export interface CertificateRecord {
+  id: string; // e.g. "AA-630H" or "VV-AA-630H"
+  certificateNumber: string; // e.g. "VV-AA-630H"
+  studentName: string;
+  courseTitle: string;
+  completionDate: string; // "20 October 2026"
+  score: number; // 97
+  grade: string; // "Certified in American Accent Training"
+  instructorName: string;
+  leadSpecialistRole: string;
+  programManager: string; // "AKHTAR HAYAT"
+  ceo: string; // "FAIZAN MUHAMMAD"
+  duration: string; // "24 Days (6 Weeks • 4 Classes / Week • 1-to-1 Training • 60 Min / Class)"
+  accreditationAuthority: string;
+  verificationUrl: string;
+  verificationHash: string;
+  certificateImageUrl: string;
+  skills: string[];
+  moduleBreakdown: {
+    title: string;
+    score: number;
+    description: string;
+  }[];
+  curriculumSections?: CurriculumSection[];
+  customScannedImageUrl?: string;
+}
 
 export type AccentType = 'American Accent' | 'British Accent';
 

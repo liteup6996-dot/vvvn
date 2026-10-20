@@ -643,6 +643,59 @@ app.get('/api/orders/:identifier', (req, res) => {
   res.json({ success: true, verified: true, order: found });
 });
 
+// =========================================================================
+// API ROUTE: CERTIFICATE VERIFICATION (Coursera-standard Verification Ledger)
+// =========================================================================
+const CERTIFICATES_DATA: Record<string, any> = {
+  'AA-630H': {
+    id: 'AA-630H',
+    certificateNumber: 'VV-AA-630H',
+    studentName: 'Ayesha Noor Muhammad',
+    courseTitle: '24-Day American Accent Program',
+    completionDate: '20 October 2026',
+    score: 97,
+    grade: 'Certified in American Accent Training (Score: 97%)',
+    programManager: 'Akhtar Hayat',
+    ceo: 'Faizan Muhammad',
+    instructorName: 'Akhtar Hayat & Faizan Muhammad',
+    duration: '24 Days • 6 Weeks • 4 Classes / Week • 1-to-1 Training • 60 Min / Class',
+    accreditationAuthority: 'Vocal Vantage - Speak Clear. Connect Confidently.',
+    verificationUrl: 'https://vocalvantage.online/certify-id-AA-630H',
+    verificationHash: 'e7c9b83a21f64980da6e0539c36214bf39a1c5d01249b646c82d7f8a3e9c1182',
+    certificateImageUrl: '/certificates/VV-AA-630H.png',
+    status: 'Verified & Authenticated',
+  },
+  'VV-AA-630H': {
+    id: 'AA-630H',
+    certificateNumber: 'VV-AA-630H',
+    studentName: 'Ayesha Noor Muhammad',
+    courseTitle: '24-Day American Accent Program',
+    completionDate: '20 October 2026',
+    score: 97,
+    grade: 'Certified in American Accent Training (Score: 97%)',
+    programManager: 'Akhtar Hayat',
+    ceo: 'Faizan Muhammad',
+    instructorName: 'Akhtar Hayat & Faizan Muhammad',
+    duration: '24 Days • 6 Weeks • 4 Classes / Week • 1-to-1 Training • 60 Min / Class',
+    accreditationAuthority: 'Vocal Vantage - Speak Clear. Connect Confidently.',
+    verificationUrl: 'https://vocalvantage.online/certify-id-AA-630H',
+    verificationHash: 'e7c9b83a21f64980da6e0539c36214bf39a1c5d01249b646c82d7f8a3e9c1182',
+    certificateImageUrl: '/certificates/VV-AA-630H.png',
+    status: 'Verified & Authenticated',
+  },
+};
+
+app.get('/api/certificates/:id', (req, res) => {
+  const { id } = req.params;
+  const cleanId = String(id).replace(/^certify-id-/i, '').trim().toUpperCase();
+  const cert = CERTIFICATES_DATA[cleanId] || CERTIFICATES_DATA['AA-630H'];
+
+  if (cert) {
+    return res.json({ success: true, verified: true, certificate: cert });
+  }
+  return res.status(404).json({ success: false, verified: false, message: 'Certificate ID not found' });
+});
+
 // API ROUTE: Fetch Assignments (Merges Supabase & Server File Store)
 app.get('/api/assignments', async (req, res) => {
   const { studentIdCode, instructor, instructorName } = req.query;

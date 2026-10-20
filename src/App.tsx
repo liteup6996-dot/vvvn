@@ -13,12 +13,21 @@ import { ReviewProductPage } from './components/ReviewProductPage';
 import { Footer } from './components/Footer';
 import { PrivacyTermsModal, PolicyType } from './components/PrivacyTermsModal';
 import { WhatsAppButton } from './components/WhatsAppButton';
+import { CertificateVerificationPage } from './components/CertificateVerificationPage';
 
 export default function App() {
   // Determine initial view from window.location.pathname
   const getInitialView = (): PageView => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
+      if (
+        path === '/certify-id-aa-630h' ||
+        path.startsWith('/certify-id') ||
+        path.startsWith('/verify') ||
+        path.startsWith('/certificate')
+      ) {
+        return 'certificate';
+      }
       if (path === '/review-page' || path.startsWith('/review-page')) {
         return 'review';
       }
@@ -44,7 +53,14 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
-      if (path === '/review-page' || path.startsWith('/review-page')) {
+      if (
+        path === '/certify-id-aa-630h' ||
+        path.startsWith('/certify-id') ||
+        path.startsWith('/verify') ||
+        path.startsWith('/certificate')
+      ) {
+        setCurrentView('certificate');
+      } else if (path === '/review-page' || path.startsWith('/review-page')) {
         setCurrentView('review');
       } else if (path === '/lms' || path.startsWith('/lms')) {
         setCurrentView('lms');
@@ -69,6 +85,7 @@ export default function App() {
       if (view === 'review') targetPath = '/review-page';
       else if (view === 'lms') targetPath = '/lms';
       else if (view === 'team') targetPath = '/team';
+      else if (view === 'certificate') targetPath = '/certify-id-AA-630H';
 
       if (window.location.pathname !== targetPath) {
         window.history.pushState({}, '', targetPath);
@@ -108,8 +125,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col font-sans">
-      {/* Show header on Home, Team, and Review views */}
-      {currentView !== 'lms' && currentView !== 'review' && (
+      {/* Show header on Home and Team views */}
+      {currentView !== 'lms' && currentView !== 'review' && currentView !== 'certificate' && (
         <Header
           currentView={currentView}
           setCurrentView={(view) => handleNavigateView(view)}
@@ -150,6 +167,15 @@ export default function App() {
         </main>
       )}
 
+      {/* VIEW: OFFICIAL CERTIFICATE VERIFICATION PAGE (/certify-id-AA-630H) */}
+      {currentView === 'certificate' && (
+        <CertificateVerificationPage
+          onBackToHome={() => handleNavigateView('home')}
+          onOpenLms={() => handleNavigateView('lms')}
+          initialCertificateId="AA-630H"
+        />
+      )}
+
       {/* VIEW: STUDENT / INSTRUCTOR LMS PORTAL */}
       {currentView === 'lms' && (
         <LMSPortal
@@ -163,7 +189,7 @@ export default function App() {
       )}
 
       {/* FOOTER */}
-      {currentView !== 'lms' && (
+      {currentView !== 'lms' && currentView !== 'certificate' && (
         <Footer
           onNavigate={(view, sectionId) => {
             if (view === 'home' && sectionId) {
