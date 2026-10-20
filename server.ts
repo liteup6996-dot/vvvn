@@ -650,7 +650,7 @@ const CERTIFICATES_DATA: Record<string, any> = {
   'AA-630H': {
     id: 'AA-630H',
     certificateNumber: 'VV-AA-630H',
-    studentName: 'Ayesha Noor Muhammad',
+    studentName: 'Aisha Noor Muhammad',
     courseTitle: '24-Day American Accent Program',
     completionDate: '20 October 2026',
     score: 97,
@@ -668,7 +668,7 @@ const CERTIFICATES_DATA: Record<string, any> = {
   'VV-AA-630H': {
     id: 'AA-630H',
     certificateNumber: 'VV-AA-630H',
-    studentName: 'Ayesha Noor Muhammad',
+    studentName: 'Aisha Noor Muhammad',
     courseTitle: '24-Day American Accent Program',
     completionDate: '20 October 2026',
     score: 97,

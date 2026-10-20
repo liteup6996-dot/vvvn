@@ -141,10 +141,10 @@ export const DEMO_STUDENT_BRITISH: StudentProfile = {
   previousAssignments: [],
 };
 
-export const DEFAULT_CERTIFICATE_AYESHA: CertificateRecord = {
+export const DEFAULT_CERTIFICATE_AISHA: CertificateRecord = {
   id: 'AA-630H',
   certificateNumber: 'VV-AA-630H',
-  studentName: 'Ayesha Noor Muhammad',
+  studentName: 'Aisha Noor Muhammad',
   courseTitle: '24-Day American Accent Program',
   completionDate: '20 October 2026',
   score: 97,
@@ -350,13 +350,15 @@ export const DEFAULT_CERTIFICATE_AYESHA: CertificateRecord = {
   ],
 };
 
+export const DEFAULT_CERTIFICATE_AYESHA = DEFAULT_CERTIFICATE_AISHA;
+
 export const CERTIFICATES_DATABASE: Record<string, CertificateRecord> = {
-  'AA-630H': DEFAULT_CERTIFICATE_AYESHA,
-  'aa-630h': DEFAULT_CERTIFICATE_AYESHA,
-  'VV-AA-630H': DEFAULT_CERTIFICATE_AYESHA,
-  'vv-aa-630h': DEFAULT_CERTIFICATE_AYESHA,
-  'AA630H': DEFAULT_CERTIFICATE_AYESHA,
-  'aa630h': DEFAULT_CERTIFICATE_AYESHA,
-  '630H': DEFAULT_CERTIFICATE_AYESHA,
-  '630h': DEFAULT_CERTIFICATE_AYESHA,
+  'AA-630H': DEFAULT_CERTIFICATE_AISHA,
+  'aa-630h': DEFAULT_CERTIFICATE_AISHA,
+  'VV-AA-630H': DEFAULT_CERTIFICATE_AISHA,
+  'vv-aa-630h': DEFAULT_CERTIFICATE_AISHA,
+  'AA630H': DEFAULT_CERTIFICATE_AISHA,
+  'aa630h': DEFAULT_CERTIFICATE_AISHA,
+  '630H': DEFAULT_CERTIFICATE_AISHA,
+  '630h': DEFAULT_CERTIFICATE_AISHA,
 };

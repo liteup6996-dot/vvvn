@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CertificateRecord } from '../types';
-import { DEFAULT_CERTIFICATE_AYESHA, CERTIFICATES_DATABASE, LOGO_URL } from '../data';
+import { DEFAULT_CERTIFICATE_AISHA, CERTIFICATES_DATABASE, LOGO_URL } from '../data';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -41,7 +41,7 @@ export const CertificateVerificationPage: React.FC<CertificateVerificationPagePr
   const [certIdInput, setCertIdInput] = useState(initialCertificateId);
   const [currentCert, setCurrentCert] = useState<CertificateRecord>(() => {
     const clean = initialCertificateId.trim().toUpperCase();
-    return CERTIFICATES_DATABASE[clean] || DEFAULT_CERTIFICATE_AYESHA;
+    return CERTIFICATES_DATABASE[clean] || DEFAULT_CERTIFICATE_AISHA;
   });
 
   const [copiedLink, setCopiedLink] = useState(false);
