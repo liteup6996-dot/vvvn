@@ -115,7 +115,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
 
   // Instructor Create Assignment Form State
-  const [targetStudentId, setTargetStudentId] = useState<string>('690H');
+  const [targetStudentId, setTargetStudentId] = useState<string>('VV-LC-7K42');
   const [instructorStudentFilter, setInstructorStudentFilter] = useState<string>('all');
   const [enrolledStudents, setEnrolledStudents] = useState<StudentProfile[]>(ENROLLED_STUDENTS);
   const [newTitle, setNewTitle] = useState('');
@@ -375,13 +375,13 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
           setIsInstructorLoggedIn(true);
           setIsLoggedIn(true);
           const instInfo = res.instructorInfo || {
-            id: 'MAHA',
-            name: 'Miss Maha',
-            email: 'miss.maha@vocalvantage.online',
+            id: 'MAHEEN',
+            name: 'Miss Maheen',
+            email: 'miss.maheen@vocalvantage.online',
           };
           setCurrentInstructor(instInfo);
-          setTargetStudentId('625H');
-          setInstructorStudentFilter('625H');
+          setTargetStudentId('VV-LC-7K42');
+          setInstructorStudentFilter('all');
         }
       } else {
         setLoginError(res.errorMessage || 'Invalid credentials. Please verify your details.');
@@ -753,7 +753,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder={loginRole === 'student' ? 'e.g. XXXH' : 'e.g. 1001'}
+                    placeholder={loginRole === 'student' ? 'e.g. 190132 or VV-LC-7K42' : 'e.g. MAHEEN or 123123'}
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
@@ -780,6 +780,50 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                     id="lms-login-password-input"
                   />
                 </div>
+              </div>
+
+              {/* Quick Login Helper Shortcuts */}
+              <div className="pt-1">
+                <p className="text-[11px] text-gray-500 font-medium mb-1.5 flex items-center gap-1">
+                  <span>Quick Login Credentials:</span>
+                </p>
+                {loginRole === 'student' ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginIdentifier('190132');
+                        setPassword('2989');
+                      }}
+                      className="text-[11px] px-2.5 py-1 bg-rose-50 text-[#7A1B28] border border-rose-200 rounded-md hover:bg-rose-100 font-medium cursor-pointer transition-colors"
+                    >
+                      Haris Ahmed (190132 / 2989)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginIdentifier('625H');
+                        setPassword('162111');
+                      }}
+                      className="text-[11px] px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 font-medium cursor-pointer transition-colors"
+                    >
+                      Abdul REHMAN (625H / 162111)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginIdentifier('MAHEEN');
+                        setPassword('1122');
+                      }}
+                      className="text-[11px] px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-md hover:bg-amber-100 font-medium cursor-pointer transition-colors"
+                    >
+                      Miss Maheen (MAHEEN / 1122)
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1517,10 +1561,12 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28] bg-white cursor-pointer"
                   id="inst-asg-target-student"
                 >
-                  <option value="625H">Abdul REHMAN (ID: 625H • Core Language Program • Assigned Teacher: Miss Maha)</option>
+                  <option value="VV-LC-7K42">Haris Ahmed (ID: VV-LC-7K42 / 190132 • Core Language Program • Teacher: Miss Maheen)</option>
+                  <option value="625H">Abdul REHMAN (ID: 625H • Core Language Program • Teacher: Miss Maheen)</option>
+                  <option value="ALL">All Assigned Students (Haris Ahmed & Abdul REHMAN)</option>
                 </select>
                 <p className="text-[11px] text-gray-500 mt-1">
-                  Assignments created will be exclusively delivered to your assigned student Abdul REHMAN (625H).
+                  Assignments created will be directly delivered to the selected student or all assigned students.
                 </p>
               </div>
 
@@ -1548,7 +1594,15 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                 <textarea
                   required
                   rows={4}
-                  placeholder={`Write clear instructions for ${targetStudentId === 'ALL' ? 'students' : targetStudentId === '690H' ? 'Hafsa Ghuman' : 'Abdul REHMAN'} regarding phonetics, vocal exercises, or reading materials...`}
+                  placeholder={`Write clear instructions for ${
+                    targetStudentId === 'ALL'
+                      ? 'all students'
+                      : targetStudentId === 'VV-LC-7K42' || targetStudentId === '190132'
+                      ? 'Haris Ahmed'
+                      : targetStudentId === '690H'
+                      ? 'Hafsa Ghuman'
+                      : 'Abdul REHMAN'
+                  } regarding phonetics, vocal exercises, or reading materials...`}
                   value={newInstructions}
                   onChange={(e) => setNewInstructions(e.target.value)}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
@@ -1664,35 +1718,74 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
               </div>
             </div>
 
-            {/* Filter Tabs for Instructor - Isolated to Assigned Student */}
+            {/* Filter Tabs for Instructor - Isolated to Assigned Students */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setInstructorStudentFilter('625H')}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-blue-700 text-white shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                onClick={() => setInstructorStudentFilter('all')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  instructorStudentFilter === 'all'
+                    ? 'bg-gray-900 text-white shadow-xs'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>Abdul REHMAN (625H) Assigned Tasks & Submissions ({assignments.filter((a) => a.studentIdCode === '625H').length})</span>
+                <span>All Tasks ({assignments.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInstructorStudentFilter('VV-LC-7K42')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  instructorStudentFilter === 'VV-LC-7K42'
+                    ? 'bg-[#7A1B28] text-white shadow-xs'
+                    : 'bg-rose-50 text-[#7A1B28] hover:bg-rose-100'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Haris Ahmed (VV-LC-7K42) ({assignments.filter((a) => (a.studentIdCode || '').toUpperCase() === 'VV-LC-7K42' || a.studentIdCode === '190132').length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInstructorStudentFilter('625H')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  instructorStudentFilter === '625H'
+                    ? 'bg-blue-700 text-white shadow-xs'
+                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Abdul REHMAN (625H) ({assignments.filter((a) => (a.studentIdCode || '').toUpperCase() === '625H').length})</span>
               </button>
             </div>
 
             {isLoadingAssignments ? (
               <div className="p-8 text-center text-xs text-gray-500">Loading assignments...</div>
-            ) : assignments.filter((a) => a.studentIdCode === '625H').length === 0 ? (
+            ) : assignments.filter((a) => {
+                if (instructorStudentFilter === 'all') return true;
+                const c = (a.studentIdCode || '').toUpperCase();
+                if (instructorStudentFilter === 'VV-LC-7K42') return c === 'VV-LC-7K42' || c === '190132';
+                return c === instructorStudentFilter.toUpperCase();
+              }).length === 0 ? (
               <div className="bg-white rounded-xl border border-gray-200 p-8 text-center space-y-2">
                 <FileText className="w-10 h-10 text-gray-300 mx-auto" />
-                <p className="text-gray-900 font-semibold text-base">No Assignments Created Yet</p>
+                <p className="text-gray-900 font-semibold text-base">No Assignments Found</p>
                 <p className="text-xs text-gray-500">
-                  Use the form above to assign a new task to your assigned student Abdul REHMAN (625H).
+                  Use the form above to assign a new task to your assigned students.
                 </p>
               </div>
             ) : (
               <div className="space-y-6">
                 {assignments
-                  .filter((asg) => asg.studentIdCode === '625H')
+                  .filter((a) => {
+                    if (instructorStudentFilter === 'all') return true;
+                    const c = (a.studentIdCode || '').toUpperCase();
+                    if (instructorStudentFilter === 'VV-LC-7K42') return c === 'VV-LC-7K42' || c === '190132';
+                    return c === instructorStudentFilter.toUpperCase();
+                  })
                   .map((asg) => {
                     const isClosed = asg.dueDateTimeMs ? Date.now() > asg.dueDateTimeMs : false;
                     const isSubmitted = asg.status === 'Submitted';
+                    const asgCodeUpper = (asg.studentIdCode || '').toUpperCase();
 
                     return (
                       <div key={asg.id} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5 shadow-2xs">
@@ -1705,16 +1798,20 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                               </span>
                               <span
                                 className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full inline-block ${
-                                  asg.studentIdCode === '690H'
+                                  asgCodeUpper === 'VV-LC-7K42' || asgCodeUpper === '190132'
+                                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                    : asgCodeUpper === '690H'
                                     ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                                    : asg.studentIdCode === '625H'
+                                    : asgCodeUpper === '625H'
                                     ? 'bg-blue-100 text-blue-800 border border-blue-200'
                                     : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 }`}
                               >
-                                {asg.studentIdCode === '690H'
+                                {asgCodeUpper === 'VV-LC-7K42' || asgCodeUpper === '190132'
+                                  ? '👤 For: Haris Ahmed (VV-LC-7K42)'
+                                  : asgCodeUpper === '690H'
                                   ? '👤 For: Hafsa Ghuman (690H)'
-                                  : asg.studentIdCode === '625H'
+                                  : asgCodeUpper === '625H'
                                   ? '👤 For: Abdul REHMAN (625H)'
                                   : '👥 For: All Enrolled Students'}
                               </span>
@@ -1786,9 +1883,15 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                                 Student Submission Received
                               </span>
                               <p className="text-sm font-bold text-gray-900">
-                                {asg.submittedFile.studentName || asg.targetStudentName || (asg.studentIdCode === '690H' ? 'Hafsa Ghuman' : 'Abdul REHMAN')}
+                                {asg.submittedFile.studentName || asg.targetStudentName || (
+                                  (asg.submittedFile.studentIdCode || asg.studentIdCode)?.toUpperCase() === 'VV-LC-7K42' || (asg.submittedFile.studentIdCode || asg.studentIdCode) === '190132'
+                                    ? 'Haris Ahmed'
+                                    : (asg.submittedFile.studentIdCode || asg.studentIdCode) === '690H'
+                                    ? 'Hafsa Ghuman'
+                                    : 'Abdul REHMAN'
+                                )}
                                 <span className="text-xs text-gray-500 font-normal ml-1.5">
-                                  (Student ID: {asg.submittedFile.studentIdCode || asg.studentIdCode || '690H'})
+                                  (Student ID: {asg.submittedFile.studentIdCode || asg.studentIdCode || 'VV-LC-7K42'})
                                 </span>
                               </p>
                               <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -2094,7 +2197,15 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
   const currentStudentIdCode = (currentStudent.studentId || '').trim().toUpperCase();
   const studentAssignments = assignments.filter((a) => {
     if (!a.studentIdCode || a.studentIdCode === 'ALL') return true;
-    return a.studentIdCode.trim().toUpperCase() === currentStudentIdCode;
+    const asgCode = a.studentIdCode.trim().toUpperCase();
+    if (asgCode === currentStudentIdCode) return true;
+    if (
+      (currentStudentIdCode === 'VV-LC-7K42' || currentStudentIdCode === '190132') &&
+      (asgCode === 'VV-LC-7K42' || asgCode === '190132')
+    ) {
+      return true;
+    }
+    return false;
   });
   const activeStudentAssignments = studentAssignments.filter((a) => a.status !== 'Submitted');
   const submittedStudentAssignments = studentAssignments.filter((a) => a.status === 'Submitted');

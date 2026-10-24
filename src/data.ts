@@ -32,11 +32,11 @@ export const INITIAL_INSTRUCTORS: Instructor[] = [
   },
   {
     id: 'inst-3',
-    name: 'Miss Maha',
+    name: 'Miss Maheen',
     role: 'Core Language & Speech Instructor',
     gender: 'female',
     photoUrl: 'https://i.ibb.co/yc1QW9Cy/Vocal-Vantage-3.png',
-    bio: 'Specialist voice and articulation coach coaching students in Core Language mastery, vocabulary architecture, articulatory precision, and personalized 1-on-1 language development. Assigned instructor for Abdul Rehman.',
+    bio: 'Specialist voice and articulation coach coaching students in Core Language mastery, vocabulary architecture, articulatory precision, and personalized 1-on-1 language development. Assigned instructor for Abdul Rehman & Haris Ahmed.',
     specialization: 'Core Language Program, Articulatory Precision & One-on-One Coaching',
     offersOneOnOne: true,
   },
@@ -98,12 +98,24 @@ export const INITIAL_INSTRUCTORS: Instructor[] = [
   },
 ];
 
+export const HARIS_AHMED_STUDENT: StudentProfile = {
+  id: 'std-vv-lc-7k42',
+  studentId: 'VV-LC-7K42',
+  email: 'haris.ahmed@vocalvantage.online',
+  name: 'Haris Ahmed',
+  instructorName: 'Miss Maheen',
+  courseProgram: 'Core Language Program',
+  accentType: 'Core Language',
+  activeAssignments: [],
+  previousAssignments: [],
+};
+
 export const ABDUL_REHMAN_STUDENT: StudentProfile = {
   id: 'std-625h',
   studentId: '625H',
   email: 'abdul.rehman@vocalvantage.online',
   name: 'Abdul REHMAN',
-  instructorName: 'Miss Maha',
+  instructorName: 'Miss Maheen',
   courseProgram: 'Core Language Program',
   accentType: 'Core Language',
   activeAssignments: [],
@@ -123,8 +135,9 @@ export const HAFSA_GHUMMAN_STUDENT: StudentProfile = {
 };
 
 export const ENROLLED_STUDENTS: StudentProfile[] = [
-  HAFSA_GHUMMAN_STUDENT,
+  HARIS_AHMED_STUDENT,
   ABDUL_REHMAN_STUDENT,
+  HAFSA_GHUMMAN_STUDENT,
 ];
 
 export const DEMO_STUDENT_AMERICAN = ABDUL_REHMAN_STUDENT;

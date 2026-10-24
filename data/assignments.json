@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "id": "asg-haris-01",
+    "studentIdCode": "VV-LC-7K42",
+    "targetStudentName": "Haris Ahmed",
+    "title": "Core Articulation & Vowel Distinction Drill",
+    "assignedDate": "24 October 2026",
+    "dueDate": "31 October 2026 at 23:59",
+    "dueDateTimeMs": 1793404740000,
+    "instructions": "Record a 60-second audio sample reading the provided phonetic word list focusing on clear plosive release and open vowels. Submit your audio file or written phonetics worksheet here.",
+    "status": "Pending"
+  }
+]

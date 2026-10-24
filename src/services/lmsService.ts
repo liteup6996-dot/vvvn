@@ -1,6 +1,6 @@
 import { getSupabase, isSupabaseConfigured, initSupabaseFromBackend } from '../lib/supabase';
 import { Assignment, StudentProfile, CourseResource } from '../types';
-import { ABDUL_REHMAN_STUDENT, HAFSA_GHUMMAN_STUDENT, ENROLLED_STUDENTS } from '../data';
+import { HARIS_AHMED_STUDENT, ABDUL_REHMAN_STUDENT, HAFSA_GHUMMAN_STUDENT, ENROLLED_STUDENTS } from '../data';
 import {
   submitContactFormLogic,
   fetchContactFormSubmissionsLogic,
@@ -104,35 +104,51 @@ export async function authenticateUser(
         if (data && !error) {
           if (data.password === cleanPass) {
             if (role === 'student') {
+              const isHaris =
+                data.user_id_code === '190132' ||
+                data.user_id_code?.toUpperCase() === 'VV-LC-7K42';
+              const is625H = data.user_id_code?.toUpperCase() === '625H';
+
               const studentName =
                 data.name ||
-                (data.user_id_code?.toUpperCase() === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN');
+                (isHaris
+                  ? 'Haris Ahmed'
+                  : data.user_id_code?.toUpperCase() === '690H'
+                  ? 'Hafsa Ghumman'
+                  : 'Abdul REHMAN');
+
               const instructorName =
-                data.user_id_code?.toUpperCase() === '625H'
-                  ? 'Miss Maha'
+                isHaris || is625H
+                  ? 'Miss Maheen'
                   : data.instructor_name ||
-                    (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Miss Maha');
+                    (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Miss Maheen');
+
               const email =
                 data.email ||
-                (data.user_id_code?.toUpperCase() === '690H'
+                (isHaris
+                  ? 'haris.ahmed@vocalvantage.online'
+                  : data.user_id_code?.toUpperCase() === '690H'
                   ? 'hafsa.ghumman@vocalvantage.online'
                   : 'abdul.rehman@vocalvantage.online');
 
               const courseProgram =
-                data.user_id_code?.toUpperCase() === '625H'
+                isHaris || is625H
                   ? 'Core Language Program'
                   : (data.course_program as any) || 'American Accent Program';
+
               const accentType =
-                data.user_id_code?.toUpperCase() === '625H'
+                isHaris || is625H
                   ? 'Core Language'
                   : (data.accent_type as any) || 'American Accent';
+
+              const canonicalStudentId = isHaris ? 'VV-LC-7K42' : data.user_id_code;
 
               return {
                 success: true,
                 role: 'student',
                 studentProfile: {
-                  id: data.id || `std-${data.user_id_code.toLowerCase()}`,
-                  studentId: data.user_id_code,
+                  id: data.id || `std-${canonicalStudentId.toLowerCase()}`,
+                  studentId: canonicalStudentId,
                   email: email,
                   name: studentName,
                   instructorName: instructorName,
@@ -149,8 +165,8 @@ export async function authenticateUser(
                 role: 'instructor',
                 instructorInfo: {
                   id: data.user_id_code,
-                  name: data.name || 'Miss Maha',
-                  email: data.email || 'miss.maha@vocalvantage.online',
+                  name: data.name || 'Miss Maheen',
+                  email: data.email || 'miss.maheen@vocalvantage.online',
                 },
                 source: 'supabase',
               };
@@ -171,7 +187,15 @@ export async function authenticateUser(
 
   // 3. Fallback to local credential validation
   if (role === 'student') {
-    if (cleanId.toUpperCase() === '690H' && cleanPass === '162123') {
+    // Haris Ahmed (Login ID: 190132 or VV-LC-7K42, Password: 2989)
+    if ((cleanId === '190132' || cleanId.toUpperCase() === 'VV-LC-7K42') && cleanPass === '2989') {
+      return {
+        success: true,
+        role: 'student',
+        studentProfile: HARIS_AHMED_STUDENT,
+        source: 'local',
+      };
+    } else if (cleanId.toUpperCase() === '690H' && cleanPass === '162123') {
       return {
         success: true,
         role: 'student',
@@ -193,21 +217,23 @@ export async function authenticateUser(
       };
     }
   } else {
-    // Instructor login for Miss Maha (supports ID: MAHA, 123123, or MISS MAHA with pass: 1122 or 162123)
-    const isMaha =
+    // Instructor login for Miss Maheen / Miss Maha (supports ID: MAHEEN, MAHA, 123123, MISS MAHEEN, MISS MAHA with pass: 1122, 162123, 2989)
+    const isMaheen =
+      (cleanId.toUpperCase() === 'MAHEEN' && (cleanPass === '1122' || cleanPass === '162123' || cleanPass === '2989')) ||
+      (cleanId.toUpperCase() === 'MISS MAHEEN' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId.toUpperCase() === 'MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId === '123123' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId.toUpperCase() === 'MISS MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId === '1003' && cleanPass === '1122');
 
-    if (isMaha) {
+    if (isMaheen) {
       return {
         success: true,
         role: 'instructor',
         instructorInfo: {
-          id: cleanId.toUpperCase() === 'MAHA' ? 'MAHA' : '123123',
-          name: 'Miss Maha',
-          email: 'miss.maha@vocalvantage.online',
+          id: cleanId.toUpperCase() === 'MAHA' ? 'MAHA' : 'MAHEEN',
+          name: 'Miss Maheen',
+          email: 'miss.maheen@vocalvantage.online',
         },
         source: 'local',
       };
@@ -261,8 +287,8 @@ export async function fetchEnrolledStudentsList(instructorName?: string): Promis
     console.warn('Could not fetch /api/students:', err);
   }
 
-  if (instructorName && instructorName.toLowerCase().includes('maha')) {
-    return [ABDUL_REHMAN_STUDENT];
+  if (instructorName && (instructorName.toLowerCase().includes('maha') || instructorName.toLowerCase().includes('maheen'))) {
+    return [HARIS_AHMED_STUDENT, ABDUL_REHMAN_STUDENT];
   }
 
   return ENROLLED_STUDENTS;
@@ -277,7 +303,7 @@ export async function fetchAssignmentsFromStore(
 ): Promise<Assignment[]> {
   await initSupabaseFromBackend();
 
-  const isMaha = filterInstructorName && filterInstructorName.toLowerCase().includes('maha');
+  const isMaheen = filterInstructorName && (filterInstructorName.toLowerCase().includes('maha') || filterInstructorName.toLowerCase().includes('maheen'));
 
   // 1. Try Direct Client Supabase first
   if (isSupabaseConfigured()) {
@@ -289,8 +315,8 @@ export async function fetchAssignmentsFromStore(
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (isMaha) {
-          query = query.eq('student_id_code', '625H');
+        if (isMaheen) {
+          query = query.in('student_id_code', ['625H', 'VV-LC-7K42', '190132', 'ALL']);
         }
 
         const { data: asgData, error: asgError } = await query;
@@ -301,7 +327,16 @@ export async function fetchAssignmentsFromStore(
           const subMap: Record<string, any> = {};
           if (subData) {
             subData.forEach((sub) => {
-              if (isMaha && sub.student_id_code !== '625H') return;
+              const subCode = sub.student_id_code?.toUpperCase();
+              if (
+                isMaheen &&
+                subCode !== '625H' &&
+                subCode !== 'VV-LC-7K42' &&
+                subCode !== '190132' &&
+                subCode !== 'ALL'
+              ) {
+                return;
+              }
               subMap[sub.assignment_id] = {
                 name: sub.file_name,
                 size: sub.file_size,
@@ -310,38 +345,48 @@ export async function fetchAssignmentsFromStore(
                 dataUrl: sub.data_url,
                 studentIdCode: sub.student_id_code,
                 studentName:
-                  sub.student_id_code === '690H'
+                  subCode === 'VV-LC-7K42' || subCode === '190132'
+                    ? 'Haris Ahmed'
+                    : subCode === '690H'
                     ? 'Hafsa Ghumman'
-                    : sub.student_id_code === '625H'
+                    : subCode === '625H'
                     ? 'Abdul REHMAN'
                     : sub.student_id_code,
               };
             });
           }
 
-          let cloudList: Assignment[] = asgData.map((row) => ({
-            id: row.id,
-            studentIdCode: row.student_id_code || 'ALL',
-            targetStudentName:
-              row.student_id_code === '690H'
-                ? 'Hafsa Ghumman'
-                : row.student_id_code === '625H'
-                ? 'Abdul REHMAN'
-                : row.student_id_code === 'ALL'
-                ? 'All Students'
-                : row.student_id_code,
-            title: row.title,
-            instructions: row.instructions,
-            assignedDate: row.assigned_date,
-            dueDate: row.due_date,
-            dueDateTimeMs: row.due_date_time_ms ? Number(row.due_date_time_ms) : undefined,
-            imageUrl: row.image_url || undefined,
-            status: row.status as 'Pending' | 'Submitted' | 'Closed',
-            submittedFile: subMap[row.id] || undefined,
-          }));
+          let cloudList: Assignment[] = asgData.map((row) => {
+            const rCode = row.student_id_code?.toUpperCase();
+            return {
+              id: row.id,
+              studentIdCode: row.student_id_code || 'ALL',
+              targetStudentName:
+                rCode === 'VV-LC-7K42' || rCode === '190132'
+                  ? 'Haris Ahmed'
+                  : rCode === '690H'
+                  ? 'Hafsa Ghumman'
+                  : rCode === '625H'
+                  ? 'Abdul REHMAN'
+                  : rCode === 'ALL'
+                  ? 'All Students'
+                  : row.student_id_code,
+              title: row.title,
+              instructions: row.instructions,
+              assignedDate: row.assigned_date,
+              dueDate: row.due_date,
+              dueDateTimeMs: row.due_date_time_ms ? Number(row.due_date_time_ms) : undefined,
+              imageUrl: row.image_url || undefined,
+              status: row.status as 'Pending' | 'Submitted' | 'Closed',
+              submittedFile: subMap[row.id] || undefined,
+            };
+          });
 
-          if (isMaha) {
-            cloudList = cloudList.filter((a) => a.studentIdCode === '625H');
+          if (isMaheen) {
+            cloudList = cloudList.filter((a) => {
+              const c = (a.studentIdCode || '').toUpperCase();
+              return c === '625H' || c === 'VV-LC-7K42' || c === '190132' || c === 'ALL';
+            });
           }
 
           try {
@@ -358,14 +403,17 @@ export async function fetchAssignmentsFromStore(
 
   // 2. Try Express Server API
   try {
-    const url = isMaha ? '/api/assignments?instructorName=Miss%20Maha' : '/api/assignments';
+    const url = isMaheen ? '/api/assignments?instructorName=Miss%20Maheen' : '/api/assignments';
     const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.assignments)) {
         let list = data.assignments;
-        if (isMaha) {
-          list = list.filter((a: Assignment) => a.studentIdCode === '625H');
+        if (isMaheen) {
+          list = list.filter((a: Assignment) => {
+            const c = (a.studentIdCode || '').toUpperCase();
+            return c === '625H' || c === 'VV-LC-7K42' || c === '190132' || c === 'ALL';
+          });
         }
         if (data.source === 'supabase-cloud') {
           try {
@@ -385,8 +433,11 @@ export async function fetchAssignmentsFromStore(
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (isMaha && Array.isArray(parsed)) {
-        return parsed.filter((a: Assignment) => a.studentIdCode === '625H');
+      if (isMaheen && Array.isArray(parsed)) {
+        return parsed.filter((a: Assignment) => {
+          const c = (a.studentIdCode || '').toUpperCase();
+          return c === '625H' || c === 'VV-LC-7K42' || c === '190132' || c === 'ALL';
+        });
       }
       return parsed;
     }
@@ -400,16 +451,19 @@ export async function fetchAssignmentsFromStore(
  */
 export async function createAssignmentInStore(
   asg: Assignment,
-  studentIdCode: string = '690H'
+  studentIdCode: string = 'VV-LC-7K42'
 ): Promise<boolean> {
   await initSupabaseFromBackend();
   let savedSupabase = false;
 
+  const targetCodeUpper = studentIdCode.toUpperCase();
   const targetName =
-    studentIdCode === '690H'
-      ? 'Hafsa Ghumman'
-      : studentIdCode === '625H'
+    targetCodeUpper === 'VV-LC-7K42' || targetCodeUpper === '190132'
+      ? 'Haris Ahmed'
+      : targetCodeUpper === '625H'
       ? 'Abdul REHMAN'
+      : targetCodeUpper === '690H'
+      ? 'Hafsa Ghumman'
       : 'All Students';
 
   const assignmentWithTarget: Assignment = {

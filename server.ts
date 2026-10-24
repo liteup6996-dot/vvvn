@@ -179,35 +179,51 @@ app.post('/api/auth/login', async (req, res) => {
 
       if (data && !error && data.password === cleanPass) {
         if (role === 'student') {
+          const isHaris =
+            data.user_id_code === '190132' ||
+            data.user_id_code?.toUpperCase() === 'VV-LC-7K42';
+          const is625H = data.user_id_code?.toUpperCase() === '625H';
+
           const studentName =
             data.name ||
-            (data.user_id_code?.toUpperCase() === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN');
+            (isHaris
+              ? 'Haris Ahmed'
+              : data.user_id_code?.toUpperCase() === '690H'
+              ? 'Hafsa Ghumman'
+              : 'Abdul REHMAN');
+
           const instructorName =
-            data.user_id_code?.toUpperCase() === '625H'
-              ? 'Miss Maha'
+            isHaris || is625H
+              ? 'Miss Maheen'
               : data.instructor_name ||
-                (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Miss Maha');
+                (data.user_id_code?.toUpperCase() === '690H' ? 'Mr. Hash' : 'Miss Maheen');
+
           const email =
             data.email ||
-            (data.user_id_code?.toUpperCase() === '690H'
+            (isHaris
+              ? 'haris.ahmed@vocalvantage.online'
+              : data.user_id_code?.toUpperCase() === '690H'
               ? 'hafsa.ghumman@vocalvantage.online'
               : 'abdul.rehman@vocalvantage.online');
 
           const courseProgram =
-            data.user_id_code?.toUpperCase() === '625H'
+            isHaris || is625H
               ? 'Core Language Program'
               : data.course_program || 'American Accent Program';
+
           const accentType =
-            data.user_id_code?.toUpperCase() === '625H'
+            isHaris || is625H
               ? 'Core Language'
               : data.accent_type || 'American Accent';
+
+          const canonicalStudentId = isHaris ? 'VV-LC-7K42' : data.user_id_code;
 
           return res.json({
             success: true,
             role: 'student',
             studentProfile: {
-              id: data.id || `std-${data.user_id_code.toLowerCase()}`,
-              studentId: data.user_id_code,
+              id: data.id || `std-${canonicalStudentId.toLowerCase()}`,
+              studentId: canonicalStudentId,
               email: email,
               name: studentName,
               instructorName: instructorName,
@@ -224,8 +240,8 @@ app.post('/api/auth/login', async (req, res) => {
             role: 'instructor',
             instructorInfo: {
               id: data.user_id_code,
-              name: data.name || 'Miss Maha',
-              email: data.email || 'miss.maha@vocalvantage.online',
+              name: data.name || 'Miss Maheen',
+              email: data.email || 'miss.maheen@vocalvantage.online',
             },
             source: 'supabase',
           });
@@ -238,7 +254,25 @@ app.post('/api/auth/login', async (req, res) => {
 
   // Fallback to default local credentials
   if (role === 'student') {
-    if (cleanId.toUpperCase() === '690H' && cleanPass === '162123') {
+    // Haris Ahmed (Login: 190132 or VV-LC-7K42, Pass: 2989)
+    if ((cleanId === '190132' || cleanId.toUpperCase() === 'VV-LC-7K42') && cleanPass === '2989') {
+      return res.json({
+        success: true,
+        role: 'student',
+        studentProfile: {
+          id: 'std-vv-lc-7k42',
+          studentId: 'VV-LC-7K42',
+          email: 'haris.ahmed@vocalvantage.online',
+          name: 'Haris Ahmed',
+          instructorName: 'Miss Maheen',
+          courseProgram: 'Core Language Program',
+          accentType: 'Core Language',
+          activeAssignments: [],
+          previousAssignments: [],
+        },
+        source: 'server-local',
+      });
+    } else if (cleanId.toUpperCase() === '690H' && cleanPass === '162123') {
       return res.json({
         success: true,
         role: 'student',
@@ -264,7 +298,7 @@ app.post('/api/auth/login', async (req, res) => {
           studentId: '625H',
           email: 'abdul.rehman@vocalvantage.online',
           name: 'Abdul REHMAN',
-          instructorName: 'Miss Maha',
+          instructorName: 'Miss Maheen',
           courseProgram: 'Core Language Program',
           accentType: 'Core Language',
           activeAssignments: [],
@@ -275,21 +309,23 @@ app.post('/api/auth/login', async (req, res) => {
     }
     return res.status(401).json({ success: false, errorMessage: 'Invalid Student ID or password.' });
   } else {
-    // Instructor login for Miss Maha (supports ID: MAHA, 123123, or MISS MAHA with pass: 1122 or 162123)
-    const isMaha =
+    // Instructor login for Miss Maheen / Miss Maha (supports ID: MAHEEN, MAHA, 123123, MISS MAHEEN, MISS MAHA with pass: 1122, 162123, 2989)
+    const isMaheen =
+      (cleanId.toUpperCase() === 'MAHEEN' && (cleanPass === '1122' || cleanPass === '162123' || cleanPass === '2989')) ||
+      (cleanId.toUpperCase() === 'MISS MAHEEN' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId.toUpperCase() === 'MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId === '123123' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId.toUpperCase() === 'MISS MAHA' && (cleanPass === '1122' || cleanPass === '162123')) ||
       (cleanId === '1003' && cleanPass === '1122');
 
-    if (isMaha) {
+    if (isMaheen) {
       return res.json({
         success: true,
         role: 'instructor',
         instructorInfo: {
-          id: cleanId.toUpperCase() === 'MAHA' ? 'MAHA' : '123123',
-          name: 'Miss Maha',
-          email: 'miss.maha@vocalvantage.online',
+          id: cleanId.toUpperCase() === 'MAHA' ? 'MAHA' : 'MAHEEN',
+          name: 'Miss Maheen',
+          email: 'miss.maheen@vocalvantage.online',
         },
         source: 'server-local',
       });
@@ -301,19 +337,19 @@ app.post('/api/auth/login', async (req, res) => {
 // API ROUTE: Fetch Enrolled Students List
 app.get('/api/students', async (req, res) => {
   const { instructor, instructorName } = req.query;
-  const isMahaReq =
-    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor === '123123')) ||
-    (typeof instructorName === 'string' && instructorName.toLowerCase().includes('maha'));
+  const isMaheenReq =
+    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor.toUpperCase() === 'MAHEEN' || instructor === '123123')) ||
+    (typeof instructorName === 'string' && (instructorName.toLowerCase().includes('maha') || instructorName.toLowerCase().includes('maheen')));
 
   const defaultStudents = [
     {
-      id: 'std-690h',
-      studentId: '690H',
-      email: 'hafsa.ghumman@vocalvantage.online',
-      name: 'Hafsa Ghumman',
-      instructorName: 'Mr. Hash',
-      courseProgram: 'American Accent Program',
-      accentType: 'American Accent',
+      id: 'std-vv-lc-7k42',
+      studentId: 'VV-LC-7K42',
+      email: 'haris.ahmed@vocalvantage.online',
+      name: 'Haris Ahmed',
+      instructorName: 'Miss Maheen',
+      courseProgram: 'Core Language Program',
+      accentType: 'Core Language',
       activeAssignments: [],
       previousAssignments: [],
     },
@@ -322,9 +358,20 @@ app.get('/api/students', async (req, res) => {
       studentId: '625H',
       email: 'abdul.rehman@vocalvantage.online',
       name: 'Abdul REHMAN',
-      instructorName: 'Miss Maha',
+      instructorName: 'Miss Maheen',
       courseProgram: 'Core Language Program',
       accentType: 'Core Language',
+      activeAssignments: [],
+      previousAssignments: [],
+    },
+    {
+      id: 'std-690h',
+      studentId: '690H',
+      email: 'hafsa.ghumman@vocalvantage.online',
+      name: 'Hafsa Ghumman',
+      instructorName: 'Mr. Hash',
+      courseProgram: 'American Accent Program',
+      accentType: 'American Accent',
       activeAssignments: [],
       previousAssignments: [],
     },
@@ -340,22 +387,25 @@ app.get('/api/students', async (req, res) => {
 
       if (!error && data && data.length > 0) {
         let mapped = data.map((p) => {
+          const isHaris = p.user_id_code === '190132' || p.user_id_code?.toUpperCase() === 'VV-LC-7K42';
           const is625H = p.user_id_code?.toUpperCase() === '625H';
+          const studentCode = isHaris ? 'VV-LC-7K42' : p.user_id_code;
+
           return {
-            id: p.id || `std-${p.user_id_code?.toLowerCase()}`,
-            studentId: p.user_id_code,
-            email: p.email || (p.user_id_code === '690H' ? 'hafsa.ghumman@vocalvantage.online' : 'abdul.rehman@vocalvantage.online'),
-            name: p.name || (p.user_id_code === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN'),
-            instructorName: is625H ? 'Miss Maha' : p.instructor_name || (p.user_id_code === '690H' ? 'Mr. Hash' : 'Miss Maha'),
-            courseProgram: is625H ? 'Core Language Program' : p.course_program || 'American Accent Program',
-            accentType: is625H ? 'Core Language' : p.accent_type || 'American Accent',
+            id: p.id || `std-${studentCode?.toLowerCase()}`,
+            studentId: studentCode,
+            email: p.email || (isHaris ? 'haris.ahmed@vocalvantage.online' : p.user_id_code === '690H' ? 'hafsa.ghumman@vocalvantage.online' : 'abdul.rehman@vocalvantage.online'),
+            name: p.name || (isHaris ? 'Haris Ahmed' : p.user_id_code === '690H' ? 'Hafsa Ghumman' : 'Abdul REHMAN'),
+            instructorName: isHaris || is625H ? 'Miss Maheen' : p.instructor_name || (p.user_id_code === '690H' ? 'Mr. Hash' : 'Miss Maheen'),
+            courseProgram: isHaris || is625H ? 'Core Language Program' : p.course_program || 'American Accent Program',
+            accentType: isHaris || is625H ? 'Core Language' : p.accent_type || 'American Accent',
             activeAssignments: [],
             previousAssignments: [],
           };
         });
 
-        if (isMahaReq) {
-          mapped = mapped.filter((s) => s.studentId === '625H' || s.instructorName.toLowerCase().includes('maha'));
+        if (isMaheenReq) {
+          mapped = mapped.filter((s) => s.studentId === '625H' || s.studentId === 'VV-LC-7K42' || s.instructorName.toLowerCase().includes('maha') || s.instructorName.toLowerCase().includes('maheen'));
         }
 
         return res.json({ success: true, students: mapped });
@@ -366,8 +416,8 @@ app.get('/api/students', async (req, res) => {
   }
 
   let resultStudents = defaultStudents;
-  if (isMahaReq) {
-    resultStudents = defaultStudents.filter((s) => s.studentId === '625H');
+  if (isMaheenReq) {
+    resultStudents = defaultStudents.filter((s) => s.studentId === '625H' || s.studentId === 'VV-LC-7K42');
   }
 
   res.json({ success: true, students: resultStudents });
@@ -699,9 +749,9 @@ app.get('/api/certificates/:id', (req, res) => {
 // API ROUTE: Fetch Assignments (Merges Supabase & Server File Store)
 app.get('/api/assignments', async (req, res) => {
   const { studentIdCode, instructor, instructorName } = req.query;
-  const isMahaOnly =
-    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor === '123123')) ||
-    (typeof instructorName === 'string' && instructorName.toLowerCase().includes('maha'));
+  const isMaheenReq =
+    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor.toUpperCase() === 'MAHEEN' || instructor === '123123')) ||
+    (typeof instructorName === 'string' && (instructorName.toLowerCase().includes('maha') || instructorName.toLowerCase().includes('maheen')));
 
   const supabase = getSupabaseClient();
   let supabaseAssignments: any[] = [];
@@ -720,6 +770,7 @@ app.get('/api/assignments', async (req, res) => {
         const subMap: Record<string, any> = {};
         if (subData) {
           subData.forEach((sub) => {
+            const subCode = sub.student_id_code?.toUpperCase();
             subMap[sub.assignment_id] = {
               name: sub.file_name,
               size: sub.file_size,
@@ -728,35 +779,42 @@ app.get('/api/assignments', async (req, res) => {
               dataUrl: sub.data_url,
               studentIdCode: sub.student_id_code,
               studentName:
-                sub.student_id_code === '690H'
+                subCode === 'VV-LC-7K42' || subCode === '190132'
+                  ? 'Haris Ahmed'
+                  : subCode === '690H'
                   ? 'Hafsa Ghumman'
-                  : sub.student_id_code === '625H'
+                  : subCode === '625H'
                   ? 'Abdul REHMAN'
                   : sub.student_id_code,
             };
           });
         }
 
-        supabaseAssignments = asgData.map((row) => ({
-          id: row.id,
-          studentIdCode: row.student_id_code || 'ALL',
-          targetStudentName:
-            row.student_id_code === '690H'
-              ? 'Hafsa Ghumman'
-              : row.student_id_code === '625H'
-              ? 'Abdul REHMAN'
-              : row.student_id_code === 'ALL'
-              ? 'All Students'
-              : row.student_id_code,
-          title: row.title,
-          instructions: row.instructions,
-          assignedDate: row.assigned_date,
-          dueDate: row.due_date,
-          dueDateTimeMs: row.due_date_time_ms ? Number(row.due_date_time_ms) : undefined,
-          imageUrl: row.image_url || undefined,
-          status: row.status,
-          submittedFile: subMap[row.id] || undefined,
-        }));
+        supabaseAssignments = asgData.map((row) => {
+          const rowCode = row.student_id_code?.toUpperCase();
+          return {
+            id: row.id,
+            studentIdCode: row.student_id_code || 'ALL',
+            targetStudentName:
+              rowCode === 'VV-LC-7K42' || rowCode === '190132'
+                ? 'Haris Ahmed'
+                : rowCode === '690H'
+                ? 'Hafsa Ghumman'
+                : rowCode === '625H'
+                ? 'Abdul REHMAN'
+                : rowCode === 'ALL'
+                ? 'All Students'
+                : row.student_id_code,
+            title: row.title,
+            instructions: row.instructions,
+            assignedDate: row.assigned_date,
+            dueDate: row.due_date,
+            dueDateTimeMs: row.due_date_time_ms ? Number(row.due_date_time_ms) : undefined,
+            imageUrl: row.image_url || undefined,
+            status: row.status,
+            submittedFile: subMap[row.id] || undefined,
+          };
+        });
       } else {
         if (asgError) console.error('Supabase fetch assignments error:', asgError);
       }
@@ -769,12 +827,28 @@ app.get('/api/assignments', async (req, res) => {
     ? supabaseAssignments
     : readJsonFile<any[]>(ASSIGNMENTS_FILE, []);
 
-  // Isolate assignments for Miss Maha: ONLY Abdul Rehman (625H)
-  if (isMahaOnly) {
-    finalAssignments = finalAssignments.filter((a) => a.studentIdCode === '625H');
+  // Filter assignments for Miss Maheen: Abdul Rehman (625H), Haris Ahmed (VV-LC-7K42 / 190132), or ALL
+  if (isMaheenReq) {
+    finalAssignments = finalAssignments.filter(
+      (a) =>
+        a.studentIdCode === '625H' ||
+        a.studentIdCode === 'VV-LC-7K42' ||
+        a.studentIdCode === '190132' ||
+        a.studentIdCode === 'ALL'
+    );
   } else if (typeof studentIdCode === 'string' && studentIdCode.trim()) {
     const code = studentIdCode.trim().toUpperCase();
-    finalAssignments = finalAssignments.filter((a) => a.studentIdCode === code || a.studentIdCode === 'ALL');
+    finalAssignments = finalAssignments.filter((a) => {
+      const asgCode = (a.studentIdCode || '').toUpperCase();
+      if (asgCode === code || asgCode === 'ALL') return true;
+      if (
+        (code === '190132' || code === 'VV-LC-7K42') &&
+        (asgCode === '190132' || asgCode === 'VV-LC-7K42')
+      ) {
+        return true;
+      }
+      return false;
+    });
   }
 
   res.json({
@@ -787,17 +861,20 @@ app.get('/api/assignments', async (req, res) => {
 
 // API ROUTE: Create Assignment
 app.post('/api/assignments', async (req, res) => {
-  const { assignment, studentIdCode = '690H' } = req.body;
+  const { assignment, studentIdCode = 'VV-LC-7K42' } = req.body;
   if (!assignment || !assignment.id) {
     return res.status(400).json({ success: false, message: 'Assignment payload required' });
   }
 
   const targetCode = studentIdCode || assignment.studentIdCode || 'ALL';
+  const targetCodeUpper = targetCode.toUpperCase();
   const targetName =
-    targetCode === '690H'
-      ? 'Hafsa Ghumman'
-      : targetCode === '625H'
+    targetCodeUpper === 'VV-LC-7K42' || targetCodeUpper === '190132'
+      ? 'Haris Ahmed'
+      : targetCodeUpper === '625H'
       ? 'Abdul REHMAN'
+      : targetCodeUpper === '690H'
+      ? 'Hafsa Ghumman'
       : 'All Students';
 
   const assignmentWithTarget = {
@@ -951,9 +1028,9 @@ app.delete('/api/assignments', async (req, res) => {
 // GET /api/resources - Fetch learning resources (filtered by studentIdCode or instructor)
 app.get('/api/resources', async (req, res) => {
   const { studentIdCode, instructor, instructorName } = req.query;
-  const isMahaOnly =
-    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor === '123123')) ||
-    (typeof instructorName === 'string' && instructorName.toLowerCase().includes('maha'));
+  const isMaheenReq =
+    (typeof instructor === 'string' && (instructor.toUpperCase() === 'MAHA' || instructor.toUpperCase() === 'MAHEEN' || instructor === '123123')) ||
+    (typeof instructorName === 'string' && (instructorName.toLowerCase().includes('maha') || instructorName.toLowerCase().includes('maheen')));
 
   const supabase = getSupabaseClient();
   let supabaseResources: any[] = [];
@@ -971,8 +1048,14 @@ app.get('/api/resources', async (req, res) => {
         supabaseResources = data.map((row) => ({
           id: row.id,
           studentIdCode: row.student_id_code || '625H',
-          targetStudentName: row.target_student_name || 'Abdul REHMAN',
-          instructorName: row.instructor_name || 'Miss Maha',
+          targetStudentName:
+            row.target_student_name ||
+            (row.student_id_code === 'VV-LC-7K42' || row.student_id_code === '190132'
+              ? 'Haris Ahmed'
+              : row.student_id_code === '625H'
+              ? 'Abdul REHMAN'
+              : 'All Students'),
+          instructorName: row.instructor_name || 'Miss Maheen',
           title: row.title,
           description: row.description || '',
           category: row.category || 'Phonetics & Pronunciation',
@@ -997,16 +1080,29 @@ app.get('/api/resources', async (req, res) => {
     ? supabaseResources
     : readJsonFile<any[]>(RESOURCES_FILE, []);
 
-  // Filter for Miss Maha or specific Student ID
-  if (isMahaOnly) {
+  // Filter for Miss Maheen or specific Student ID
+  if (isMaheenReq) {
     finalResources = finalResources.filter(
-      (r) => r.studentIdCode === '625H' || (r.instructorName && r.instructorName.toLowerCase().includes('maha'))
+      (r) =>
+        r.studentIdCode === '625H' ||
+        r.studentIdCode === 'VV-LC-7K42' ||
+        r.studentIdCode === '190132' ||
+        r.studentIdCode === 'ALL' ||
+        (r.instructorName && (r.instructorName.toLowerCase().includes('maha') || r.instructorName.toLowerCase().includes('maheen')))
     );
   } else if (typeof studentIdCode === 'string' && studentIdCode.trim()) {
     const code = studentIdCode.trim().toUpperCase();
-    finalResources = finalResources.filter(
-      (r) => r.studentIdCode === code || r.studentIdCode === 'ALL'
-    );
+    finalResources = finalResources.filter((r) => {
+      const rCode = (r.studentIdCode || '').toUpperCase();
+      if (rCode === code || rCode === 'ALL') return true;
+      if (
+        (code === '190132' || code === 'VV-LC-7K42') &&
+        (rCode === '190132' || rCode === 'VV-LC-7K42')
+      ) {
+        return true;
+      }
+      return false;
+    });
   }
 
   res.json({
@@ -1025,9 +1121,15 @@ app.post('/api/resources', async (req, res) => {
   }
 
   const resId = resource.id || `res-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  const studentIdCode = resource.studentIdCode || '625H';
-  const targetStudentName = resource.targetStudentName || (studentIdCode === '625H' ? 'Abdul REHMAN' : studentIdCode);
-  const instructorName = resource.instructorName || 'Miss Maha';
+  const studentIdCode = resource.studentIdCode || 'VV-LC-7K42';
+  const targetStudentName =
+    resource.targetStudentName ||
+    (studentIdCode === 'VV-LC-7K42' || studentIdCode === '190132'
+      ? 'Haris Ahmed'
+      : studentIdCode === '625H'
+      ? 'Abdul REHMAN'
+      : 'All Students');
+  const instructorName = resource.instructorName || 'Miss Maheen';
   const title = resource.title;
   const description = resource.description || '';
   const category = resource.category || 'Phonetics & Pronunciation';
