@@ -753,7 +753,7 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder={loginRole === 'student' ? 'e.g. 190132 or VV-LC-7K42' : 'e.g. MAHEEN or 123123'}
+                    placeholder={loginRole === 'student' ? 'XXX-H' : 'e.g. MAHEEN'}
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-[#7A1B28]/20 focus:border-[#7A1B28]"
@@ -780,50 +780,6 @@ export const LMSPortal: React.FC<LMSPortalProps> = ({
                     id="lms-login-password-input"
                   />
                 </div>
-              </div>
-
-              {/* Quick Login Helper Shortcuts */}
-              <div className="pt-1">
-                <p className="text-[11px] text-gray-500 font-medium mb-1.5 flex items-center gap-1">
-                  <span>Quick Login Credentials:</span>
-                </p>
-                {loginRole === 'student' ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginIdentifier('190132');
-                        setPassword('2989');
-                      }}
-                      className="text-[11px] px-2.5 py-1 bg-rose-50 text-[#7A1B28] border border-rose-200 rounded-md hover:bg-rose-100 font-medium cursor-pointer transition-colors"
-                    >
-                      Haris Ahmed (190132 / 2989)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginIdentifier('625H');
-                        setPassword('162111');
-                      }}
-                      className="text-[11px] px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 font-medium cursor-pointer transition-colors"
-                    >
-                      Abdul REHMAN (625H / 162111)
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginIdentifier('MAHEEN');
-                        setPassword('1122');
-                      }}
-                      className="text-[11px] px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-md hover:bg-amber-100 font-medium cursor-pointer transition-colors"
-                    >
-                      Miss Maheen (MAHEEN / 1122)
-                    </button>
-                  </div>
-                )}
               </div>
 
               <div>
